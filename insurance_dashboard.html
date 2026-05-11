@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>保險營運流程監控看板</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'PingFang TC','Microsoft JhengHei',sans-serif;background:#f0f4f8;color:#1a2a4a;min-height:100vh}
+.header{background:linear-gradient(135deg,#1a2a4a 0%,#2d4a7a 100%);color:#fff;padding:20px 32px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+.header h1{font-size:20px;font-weight:700;letter-spacing:1px}
+.header .subtitle{font-size:12px;opacity:.75;margin-top:4px}
+.header-right{text-align:right;font-size:12px;opacity:.8}
+.container{max-width:1400px;margin:0 auto;padding:24px 20px}
+.upload-section{background:#fff;border-radius:12px;padding:24px;margin-bottom:24px;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+.upload-section h2{font-size:15px;font-weight:600;color:#1a2a4a;margin-bottom:16px;display:flex;align-items:center;gap:8px}
+.upload-row{display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end}
+.upload-item{display:flex;flex-direction:column;gap:6px;flex:1;min-width:200px}
+.upload-item label{font-size:12px;color:#666;font-weight:500}
+.upload-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;background:#f0f4f8;border:2px dashed #c0cce0;border-radius:8px;cursor:pointer;font-size:13px;color:#2d4a7a;transition:all .2s;white-space:nowrap}
+.upload-btn:hover{background:#e8f0fe;border-color:#2d4a7a}
+.upload-btn.loaded{background:#e8f8f0;border-color:#27ae60;border-style:solid;color:#27ae60}
+.upload-btn input{display:none}
+.filter-bar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:16px;padding-top:16px;border-top:1px solid #f0f0f0}
+.filter-bar label{font-size:13px;color:#555;font-weight:500}
+.filter-bar input[type=date]{padding:7px 10px;border:1px solid #dde3ed;border-radius:6px;font-size:13px;color:#1a2a4a}
+.btn{padding:8px 18px;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600;transition:all .2s}
+.btn-primary{background:#2d4a7a;color:#fff}.btn-primary:hover{background:#1a2a4a}
+.btn-secondary{background:#f0f4f8;color:#2d4a7a;border:1px solid #c0cce0}.btn-secondary:hover{background:#e0e8f8}
+.filter-info{font-size:12px;color:#e67e22;font-weight:500;padding:4px 10px;background:#fef9f0;border-radius:4px}
+.nodes-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px;margin-bottom:24px}
+.node-card{background:#fff;border-radius:12px;padding:18px 20px;box-shadow:0 2px 8px rgba(0,0,0,.06);border-left:4px solid #2d4a7a;transition:transform .15s,box-shadow .15s;cursor:default}
+.node-card:hover{transform:translateY(-2px);box-shadow:0 4px 16px rgba(0,0,0,.1)}
+.node-card.warn{border-left-color:#f39c12;background:#fffbf0}
+.node-card.alert{border-left-color:#e74c3c;background:#fff5f5}
+.node-card .label{font-size:12px;color:#666;font-weight:500;margin-bottom:8px}
+.node-card .count{font-size:32px;font-weight:800;color:#1a2a4a;line-height:1}
+.node-card.warn .count{color:#f39c12}
+.node-card.alert .count{color:#e74c3c}
+.node-card .sub{font-size:11px;color:#999;margin-top:6px}
+.node-card .badge{display:inline-block;font-size:10px;padding:2px 6px;border-radius:4px;margin-top:6px;font-weight:600}
+.badge-warn{background:#fff3cd;color:#856404}
+.badge-alert{background:#f8d7da;color:#721c24}
+.charts-section{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px}
+.chart-card{background:#fff;border-radius:12px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+.chart-card.full{grid-column:1/-1}
+.chart-card h3{font-size:14px;font-weight:600;color:#1a2a4a;margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid #f0f4f8}
+.chart-wrap{position:relative;height:260px}
+.no-data{text-align:center;color:#aaa;font-size:13px;padding:60px 0}
+.no-data .icon{font-size:40px;margin-bottom:10px}
+.report-section{background:#fff;border-radius:12px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,.06);margin-bottom:24px}
+.report-section h2{font-size:15px;font-weight:600;color:#1a2a4a;margin-bottom:12px}
+.report-text{background:#f8fafc;border-radius:8px;padding:16px;font-size:13px;line-height:1.8;color:#333;white-space:pre-wrap;min-height:80px}
+.copy-btn{margin-top:10px;padding:6px 14px;background:#2d4a7a;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px}
+.copy-btn:hover{background:#1a2a4a}
+.footer{text-align:center;font-size:11px;color:#aaa;padding:20px;margin-top:8px}
+@media(max-width:768px){
+  .charts-section{grid-template-columns:1fr}
+  .chart-card.full{grid-column:1}
+  .nodes-grid{grid-template-columns:repeat(2,1fr)}
+  .header{flex-direction:column;gap:8px;text-align:center}
+}
+</style>
+</head>
+<body>
+<div class="header">
+  <div>
+    <div class="header h1" style="font-size:20px;font-weight:700;letter-spacing:1px">🏦 保險營運流程監控看板</div>
+    <div class="subtitle">Insurance Operations Monitoring Dashboard</div>
+  </div>
+  <div class="header-right">
+    <div id="lastUpdate">尚未載入數據</div>
+    <div id="filterBadge"></div>
+  </div>
+</div>
+
+<div class="container">
+  <!-- 上传区域 -->
+  <div class="upload-section">
+    <h2>📂 數據上傳</h2>
+    <div class="upload-row">
+      <div class="upload-item">
+        <label>主數據（Policy_Wide_Table_Detail CSV/Excel）<span style="color:#e74c3c">*</span></label>
+        <label class="upload-btn" id="mainUploadBtn">
+          <span>📄</span><span id="mainUploadText">選擇主數據文件</span>
+          <input type="file" id="mainFile" accept=".csv,.xlsx,.xls">
+        </label>
+      </div>
+      <div class="upload-item">
+        <label>邮寄數據（SF record，有顺丰号=已邮寄）</label>
+        <label class="upload-btn" id="sfUploadBtn">
+          <span>📦</span><span id="sfUploadText">選擇SF Record文件</span>
+          <input type="file" id="sfFile" accept=".csv,.xlsx,.xls">
+        </label>
+      </div>
+      <div class="upload-item">
+        <label>打印數據（已打印保單號列表，可選）</label>
+        <label class="upload-btn" id="printUploadBtn">
+          <span>🖨️</span><span id="printUploadText">選擇打印數據文件</span>
+          <input type="file" id="printFile" accept=".csv,.xlsx,.xls">
+        </label>
+      </div>
+      <div class="upload-item">
+        <label>簽收數據（已簽收保單號列表，可選）</label>
+        <label class="upload-btn" id="signUploadBtn">
+          <span>✅</span><span id="signUploadText">選擇簽收數據文件</span>
+          <input type="file" id="signFile" accept=".csv,.xlsx,.xls">
+        </label>
+      </div>
+    </div>
+    <div class="filter-bar">
+      <label>申請時間篩選：</label>
+      <label style="font-size:13px">從</label>
+      <input type="date" id="dateFrom">
+      <label style="font-size:13px">至</label>
+      <input type="date" id="dateTo">
+      <button class="btn btn-primary" onclick="applyFilter()">篩選</button>
+      <button class="btn btn-secondary" onclick="clearFilter()">清除篩選</button>
+      <span id="filterInfo" class="filter-info" style="display:none"></span>
+    </div>
+  </div>
+
+  <!-- 节点卡片 -->
+  <div class="nodes-grid" id="nodesGrid">
+    <div class="no-data" style="grid-column:1/-1;padding:40px 0">
+      <div class="icon">📊</div>
+      <div>請先上傳主數據文件</div>
+    </div>
+  </div>
+
+  <!-- 图表 -->
+  <div class="charts-section" id="chartsSection" style="display:none">
+    <div class="chart-card full">
+      <h3>📊 各節點積壓量</h3>
+      <div class="chart-wrap"><canvas id="barChart"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <h3>📈 月度進單量趨勢</h3>
+      <div class="chart-wrap"><canvas id="lineChart"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <h3>🥧 承保後處理進度</h3>
+      <div class="chart-wrap"><canvas id="pieChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- 日报 -->
+  <div class="report-section" id="reportSection" style="display:none">
+    <h2>📋 今日日報（可複製發釘釘）</h2>
+    <div class="report-text" id="reportText"></div>
+    <button class="copy-btn" onclick="copyReport()">複製日報</button>
+  </div>
+</div>
+
+<div class="footer">保險營運流程監控看板 · 數據本地處理，不上傳服務器</div>
+
+<script>
+// ─── 全局状态 ───────────────────────────────────────────────
+let mainData = [];       // 主数据（全量）
+let filteredData = [];   // 筛选后数据
+let sfSet = new Set();   // 邮寄保单号集合
+let printSet = new Set();// 打印保单号集合
+let signSet = new Set(); // 签收保单号集合
+let barChartInst = null, lineChartInst = null, pieChartInst = null;
+
+// ─── Excel 日期序列号转换 ────────────────────────────────────
+function excelDateToISO(val) {
+  if (val == null || val === '') return null;
+  if (typeof val === 'string') {
+    // 尝试解析字符串日期
+    const d = new Date(val);
+    if (!isNaN(d)) return d.toISOString().slice(0, 10);
+    // 也可能是 DD/MM/YYYY
+    const m = val.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+    if (m) return `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;
+    return null;
+  }
+  if (typeof val === 'number' && val > 40000 && val < 55000) {
+    // Excel 序列号：以1900-01-01为基准，25569是1970-01-01
+    const d = new Date((val - 25569) * 86400 * 1000);
+    return d.toISOString().slice(0, 10);
+  }
+  return null;
+}
+
+// ─── 读取文件（CSV/XLSX） ────────────────────────────────────
+function readFile(file, cb) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const wb = XLSX.read(e.target.result, {type:'array', cellDates:false});
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, {defval:''});
+      cb(rows);
+    } catch(err) { alert('文件解析失败：' + err.message); }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// ─── 标准化列名（不区分大小写/空格）────────────────────────
+function findCol(row, candidates) {
+  const keys = Object.keys(row);
+  for (const c of candidates) {
+    const found = keys.find(k => k.trim().toLowerCase() === c.toLowerCase());
+    if (found !== undefined) return found;
+  }
+  return null;
+}
+
+// ─── 文件上传处理 ────────────────────────────────────────────
+document.getElementById('mainFile').addEventListener('change', e => {
+  const f = e.target.files[0]; if (!f) return;
+  readFile(f, rows => {
+    mainData = rows;
+    filteredData = rows;
+    document.getElementById('mainUploadText').textContent = f.name;
+    document.getElementById('mainUploadBtn').classList.add('loaded');
+    document.getElementById('lastUpdate').textContent = '數據載入：' + new Date().toLocaleString('zh-TW');
+    render();
+  });
+});
+
+document.getElementById('sfFile').addEventListener('change', e => {
+  const f = e.target.files[0]; if (!f) return;
+  readFile(f, rows => {
+    sfSet.clear();
+    rows.forEach(r => {
+      const col = findCol(r, ['policy number','Policy Number','保单号','保單號']);
+      const sfCol = findCol(r, ['表格登记','顺丰号','SF号','tracking']);
+      if (col && r[col] && sfCol && r[sfCol]) sfSet.add(String(r[col]).trim().toUpperCase());
+    });
+    document.getElementById('sfUploadText').textContent = f.name + ' (' + sfSet.size + '条)';
+    document.getElementById('sfUploadBtn').classList.add('loaded');
+    render();
+  });
+});
+
+document.getElementById('printFile').addEventListener('change', e => {
+  const f = e.target.files[0]; if (!f) return;
+  readFile(f, rows => {
+    printSet.clear();
+    rows.forEach(r => {
+      const col = findCol(r, ['policy number','Policy Number','保单号','保單號']);
+      if (col && r[col]) printSet.add(String(r[col]).trim().toUpperCase());
+    });
+    document.getElementById('printUploadText').textContent = f.name + ' (' + printSet.size + '条)';
+    document.getElementById('printUploadBtn').classList.add('loaded');
+    render();
+  });
+});
+
+document.getElementById('signFile').addEventListener('change', e => {
+  const f = e.target.files[0]; if (!f) return;
+  readFile(f, rows => {
+    signSet.clear();
+    rows.forEach(r => {
+      const col = findCol(r, ['policy number','Policy Number','保单号','保單號']);
+      if (col && r[col]) signSet.add(String(r[col]).trim().toUpperCase());
+    });
+    document.getElementById('signUploadText').textContent = f.name + ' (' + signSet.size + '条)';
+    document.getElementById('signUploadBtn').classList.add('loaded');
+    render();
+  });
+});
+
+// ─── 日期筛选 ────────────────────────────────────────────────
+function applyFilter() {
+  if (!mainData.length) return;
+  const from = document.getElementById('dateFrom').value;
+  const to = document.getElementById('dateTo').value;
+  if (!from && !to) { clearFilter(); return; }
+
+  const sample = mainData[0];
+  const subCol = findCol(sample, ['Submission Date','submission date','申请日期','申請日期','SUBMISSION_DATE']);
+
+  filteredData = mainData.filter(r => {
+    if (!subCol) return true;
+    const d = excelDateToISO(r[subCol]);
+    if (!d) return false;
+    if (from && d < from) return false;
+    if (to && d > to) return false;
+    return true;
+  });
+
+  const info = document.getElementById('filterInfo');
+  info.style.display = 'inline-block';
+  info.textContent = `篩選中：${from||'不限'} 至 ${to||'不限'}（共 ${filteredData.length} 條）`;
+  render();
+}
+
+function clearFilter() {
+  filteredData = mainData;
+  document.getElementById('dateFrom').value = '';
+  document.getElementById('dateTo').value = '';
+  document.getElementById('filterInfo').style.display = 'none';
+  render();
+}
+
+// ─── 节点计算逻辑 ────────────────────────────────────────────
+function calcNodes(data) {
+  if (!data.length) return null;
+  const s = data[0];
+  const statusCol = findCol(s, ['Proposal Status','proposal status','status','Status','狀態']);
+  const policyCol = findCol(s, ['Policy Number','policy number','保单号','保單號','POLICY_NUMBER']);
+  const printDateCol = findCol(s, ['PRINT_DATE','print_date','Print Date','打印日期']);
+  const despatchCol = findCol(s, ['Policy Despatch Date','policy despatch date','邮寄日期','郵寄日期']);
+  const ackCol = findCol(s, ['Policy Acknowledgement/Mail Date','Policy Acknowledgement Mail Date','签收日期','簽收日期']);
+
+  const nodes = {
+    total: 0,
+    waitEntry: 0,
+    waitUW: 0,
+    pendingIssued: 0,
+    pendingBack: 0,
+    waitPay: 0,
+    waitPrint: 0,
+    waitMail: 0,
+    waitSign: 0,
+    signed: 0
+  };
+
+  nodes.total = data.length;
+
+  const WAIT_ENTRY = ['initial registration completed','initial registration in progress','verification in progress','waiting for verification'];
+  const WAIT_UW = ['waiting for underwriting'];
+  const PENDING_ISSUED = ['underwriting in progress'];
+  const WAIT_PAY = ['accepted'];
+  const INFORCE = ['inforce'];
+
+  data.forEach(r => {
+    const st = statusCol ? String(r[statusCol]||'').trim().toLowerCase() : '';
+    const pn = policyCol ? String(r[policyCol]||'').trim().toUpperCase() : '';
+
+    if (WAIT_ENTRY.includes(st)) { nodes.waitEntry++; return; }
+    if (WAIT_UW.includes(st)) { nodes.waitUW++; return; }
+    if (PENDING_ISSUED.includes(st)) { nodes.pendingIssued++; return; }
+    if (WAIT_PAY.includes(st)) { nodes.waitPay++; return; }
+
+    if (INFORCE.includes(st)) {
+      // 已签收
+      if (signSet.size > 0 && signSet.has(pn)) { nodes.signed++; return; }
+      const ackDate = ackCol ? excelDateToISO(r[ackCol]) : null;
+      if (ackDate) { nodes.signed++; return; }
+
+      // 已邮寄待签收
+      if (sfSet.size > 0 && sfSet.has(pn)) { nodes.waitSign++; return; }
+      const despatchDate = despatchCol ? excelDateToISO(r[despatchCol]) : null;
+      if (despatchDate) { nodes.waitSign++; return; }
+
+      // 已打印待邮寄
+      if (printSet.size > 0 && printSet.has(pn)) { nodes.waitMail++; return; }
+      const printDate = printDateCol ? excelDateToISO(r[printDateCol]) : null;
+      if (printDate) { nodes.waitMail++; return; }
+
+      // 已承保待打印
+      nodes.waitPrint++;
+    }
+  });
+
+  return nodes;
+}
+
+// ─── 渲染节点卡片 ────────────────────────────────────────────
+function cardClass(n) {
+  if (n > 50) return 'alert';
+  if (n > 20) return 'warn';
+  return '';
+}
+function cardBadge(n) {
+  if (n > 50) return '<span class="badge badge-alert">⚠️ 積壓嚴重</span>';
+  if (n > 20) return '<span class="badge badge-warn">⚡ 需關注</span>';
+  return '';
+}
+
+const NODE_DEFS = [
+  {key:'total',      label:'進單量',         icon:'📥'},
+  {key:'waitEntry',  label:'待錄入',         icon:'⌨️'},
+  {key:'waitUW',     label:'待核保',         icon:'🔍'},
+  {key:'pendingIssued',label:'問題件待回銷', icon:'📋'},
+  {key:'pendingBack',label:'回銷後待處理',   icon:'🔄'},
+  {key:'waitPay',    label:'核保通過待繳費', icon:'💰'},
+  {key:'waitPrint',  label:'承保待打印',     icon:'🖨️'},
+  {key:'waitMail',   label:'打印待郵寄',     icon:'📮'},
+  {key:'waitSign',   label:'郵寄待簽收',     icon:'📬'},
+  {key:'signed',     label:'已簽收',         icon:'✅'},
+];
+
+function render() {
+  if (!filteredData.length && mainData.length) {
+    document.getElementById('nodesGrid').innerHTML =
+      '<div class="no-data" style="grid-column:1/-1;padding:40px 0"><div class="icon">🔍</div><div>當前篩選條件下無數據（共 0 條）</div></div>';
+    document.getElementById('chartsSection').style.display = 'none';
+    document.getElementById('reportSection').style.display = 'none';
+    return;
+  }
+  if (!filteredData.length) return;
+
+  const nodes = calcNodes(filteredData);
+  const grid = document.getElementById('nodesGrid');
+  grid.innerHTML = NODE_DEFS.map(d => {
+    const n = nodes[d.key] ?? '-';
+    const cls = typeof n === 'number' ? cardClass(n) : '';
+    const badge = typeof n === 'number' ? cardBadge(n) : '';
+    return `<div class="node-card ${cls}">
+      <div class="label">${d.icon} ${d.label}</div>
+      <div class="count">${n}</div>
+      ${badge}
+    </div>`;
+  }).join('');
+
+  document.getElementById('chartsSection').style.display = 'grid';
+  document.getElementById('reportSection').style.display = 'block';
+  renderCharts(nodes, filteredData);
+  renderReport(nodes);
+}
+
+// ─── 图表渲染 ────────────────────────────────────────────────
+function renderCharts(nodes, data) {
+  // 柱状图
+  const barLabels = NODE_DEFS.slice(1).map(d => d.label);
+  const barValues = NODE_DEFS.slice(1).map(d => nodes[d.key] ?? 0);
+  const barColors = barValues.map(v => v > 50 ? '#e74c3c' : v > 20 ? '#f39c12' : '#2d4a7a');
+
+  if (barChartInst) barChartInst.destroy();
+  barChartInst = new Chart(document.getElementById('barChart'), {
+    type: 'bar',
+    data: { labels: barLabels, datasets: [{ label: '件數', data: barValues, backgroundColor: barColors, borderRadius: 6 }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+      scales: { y: { beginAtZero: true, grid: { color: '#f0f4f8' } }, x: { grid: { display: false }, ticks: { font: { size: 11 } } } } }
+  });
+
+  // 折线图（月度进单量）
+  const sample = data[0];
+  const subCol = findCol(sample, ['Submission Date','submission date','申请日期','申請日期']);
+  const monthMap = {};
+  data.forEach(r => {
+    const d = subCol ? excelDateToISO(r[subCol]) : null;
+    if (d) { const m = d.slice(0,7); monthMap[m] = (monthMap[m]||0) + 1; }
+  });
+  const months = Object.keys(monthMap).sort();
+  if (lineChartInst) lineChartInst.destroy();
+  lineChartInst = new Chart(document.getElementById('lineChart'), {
+    type: 'line',
+    data: { labels: months, datasets: [{ label: '進單量', data: months.map(m=>monthMap[m]), borderColor: '#2d4a7a', backgroundColor: 'rgba(45,74,122,.1)', fill: true, tension: 0.4, pointRadius: 4 }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+      scales: { y: { beginAtZero: true, grid: { color: '#f0f4f8' } }, x: { grid: { display: false }, ticks: { font: { size: 11 } } } } }
+  });
+
+  // 饼图（承保后处理）
+  const pieData = [nodes.waitPrint, nodes.waitMail, nodes.waitSign, nodes.signed];
+  const pieLabels = ['承保待打印','打印待郵寄','郵寄待簽收','已簽收'];
+  const pieColors = ['#3498db','#e67e22','#9b59b6','#27ae60'];
+  if (pieChartInst) pieChartInst.destroy();
+  pieChartInst = new Chart(document.getElementById('pieChart'), {
+    type: 'pie',
+    data: { labels: pieLabels, datasets: [{ data: pieData, backgroundColor: pieColors, borderWidth: 2, borderColor: '#fff' }] },
+    options: { responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: 'bottom', labels: { font: { size: 12 }, padding: 12 } } } }
+  });
+}
+
+// ─── 日报生成 ────────────────────────────────────────────────
+function renderReport(nodes) {
+  const today = new Date().toLocaleDateString('zh-TW',{year:'numeric',month:'2-digit',day:'2-digit'});
+  const lines = [
+    `【保險營運日報 ${today}】`,
+    ``,
+    `📥 今日進單量：${nodes.total} 件`,
+    `⌨️ 待錄入：${nodes.waitEntry} 件`,
+    `🔍 待核保：${nodes.waitUW} 件`,
+    `📋 問題件待回銷：${nodes.pendingIssued} 件`,
+    `💰 核保通過待繳費：${nodes.waitPay} 件`,
+    `🖨️ 承保待打印：${nodes.waitPrint} 件`,
+    `📮 打印待郵寄：${nodes.waitMail} 件`,
+    `📬 郵寄待簽收：${nodes.waitSign} 件`,
+    `✅ 已簽收：${nodes.signed} 件`,
+  ];
+  const alerts = [];
+  if (nodes.waitUW > 50) alerts.push('⚠️ 待核保積壓嚴重，請關注');
+  if (nodes.waitPrint > 50) alerts.push('⚠️ 承保待打印積壓嚴重，請關注');
+  if (nodes.waitMail > 50) alerts.push('⚠️ 打印待郵寄積壓嚴重，請關注');
+  if (alerts.length) { lines.push(''); lines.push(...alerts); }
+  document.getElementById('reportText').textContent = lines.join('\n');
+}
+
+function copyReport() {
+  const text = document.getElementById('reportText').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.querySelector('.copy-btn');
+    btn.textContent = '✅ 已複製';
+    setTimeout(() => btn.textContent = '複製日報', 2000);
+  });
+}
+</script>
+</body>
+</html>
