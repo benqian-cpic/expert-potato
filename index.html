@@ -71,6 +71,28 @@ body{font-family:'PingFang TC','Microsoft JhengHei',sans-serif;background:#f0f4f
 .copy-btn{margin-top:10px;padding:6px 14px;background:#2d4a7a;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px}
 .copy-btn:hover{background:#1a2a4a}
 .footer{text-align:center;font-size:11px;color:#aaa;padding:20px;margin-top:8px}
+/* ─── 核保人员工作量看板 ─── */
+.uw-section{background:#fff;border-radius:12px;padding:20px 24px;box-shadow:0 2px 8px rgba(0,0,0,.06);margin-bottom:24px}
+.uw-section h2{font-size:15px;font-weight:600;color:#1a2a4a;margin-bottom:16px;display:flex;align-items:center;gap:8px}
+.uw-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px}
+.uw-card{border:1.5px solid #e0e8f8;border-radius:10px;overflow:hidden}
+.uw-card-head{background:#1a2a4a;color:#fff;padding:10px 16px;display:flex;align-items:center;justify-content:space-between}
+.uw-card-head .name{font-size:14px;font-weight:700}
+.uw-card-head .counts{font-size:12px;opacity:.85;display:flex;gap:12px}
+.uw-card-head .counts span{background:rgba(255,255,255,.15);padding:2px 8px;border-radius:10px}
+.uw-card-body{padding:0}
+.uw-table{width:100%;border-collapse:collapse;font-size:12px}
+.uw-table th{background:#f0f4f8;color:#555;padding:7px 10px;text-align:left;font-weight:600;border-bottom:1px solid #e0e8f8}
+.uw-table td{padding:7px 10px;border-bottom:1px solid #f5f7fa;color:#333;vertical-align:middle}
+.uw-table tr:last-child td{border-bottom:none}
+.uw-table tr:hover td{background:#f8faff}
+.uw-table .days-warn{color:#f39c12;font-weight:600}
+.uw-table .days-alert{color:#e74c3c;font-weight:600}
+.uw-pending-tag{display:inline-block;font-size:10px;padding:1px 6px;border-radius:8px;background:#fff3cd;color:#856404;font-weight:600;white-space:nowrap}
+.uw-card-foot{padding:8px 16px;border-top:1px solid #f0f4f8;display:flex;justify-content:flex-end}
+.uw-export-btn{font-size:12px;padding:5px 12px;background:#2d4a7a;color:#fff;border:none;border-radius:5px;cursor:pointer}
+.uw-export-btn:hover{background:#1a2a4a}
+.uw-upload-hint{font-size:12px;color:#999;padding:12px 16px;text-align:center}
 @media(max-width:768px){
   .charts-section{grid-template-columns:1fr}
   .chart-card.full{grid-column:1}
@@ -124,6 +146,13 @@ body{font-family:'PingFang TC','Microsoft JhengHei',sans-serif;background:#f0f4f
           <input type="file" id="signFile" accept=".csv,.xlsx,.xls">
         </label>
       </div>
+      <div class="upload-item">
+        <label>核保Pending清單（保單號列表，用於核保員工作量）</label>
+        <label class="upload-btn" id="uwPendingUploadBtn">
+          <span>🔄</span><span id="uwPendingUploadText">選擇Pending清單文件</span>
+          <input type="file" id="uwPendingFile" accept=".csv,.xlsx,.xls">
+        </label>
+      </div>
     </div>
     <div class="filter-bar">
       <label>申請時間篩選：</label>
@@ -167,6 +196,14 @@ body{font-family:'PingFang TC','Microsoft JhengHei',sans-serif;background:#f0f4f
     <div class="report-text" id="reportText"></div>
     <button class="copy-btn" onclick="copyReport()">複製日報</button>
   </div>
+
+  <!-- 核保人员工作量 -->
+  <div class="uw-section" id="uwSection" style="display:none">
+    <h2>👤 核保人員工作量 &amp; 時效
+      <button class="btn btn-primary" style="margin-left:auto;font-size:12px;padding:6px 14px" onclick="exportUWExcel()">📥 導出分配Excel</button>
+    </h2>
+    <div class="uw-grid" id="uwGrid"></div>
+  </div>
 </div>
 
 <div class="footer">保險營運流程監控看板 · 數據本地處理，不上傳服務器</div>
@@ -180,6 +217,29 @@ let printSet = new Set();// 打印保单号集合
 let signSet = new Set(); // 签收保单号集合
 let barChartInst = null, lineChartInst = null, pieChartInst = null;
 let nodeRecords = {}; // 每个节点对应的记录数组
+
+// 核保Pending清单：Map<保单号大写, {date: ISO日期字符串}>
+let uwPendingMap = new Map();
+
+// LAST_UW_NAME 标准化映射
+const UW_NAME_MAP = {
+  'fangyiping': 'Fangyiping',
+  'hin cheng': 'Hin',
+  'eddie lo': 'Eddie',
+  'evan zhao': 'Evan',
+  'ben qian': 'Ben Qian',
+  'auto underwriting': 'Ben Qian'
+};
+function normalizeUWName(raw) {
+  if (!raw) return '未知';
+  const key = String(raw).trim().toLowerCase();
+  if (UW_NAME_MAP[key]) return UW_NAME_MAP[key];
+  // 模糊匹配
+  for (const [k, v] of Object.entries(UW_NAME_MAP)) {
+    if (key.includes(k) || k.includes(key)) return v;
+  }
+  return String(raw).trim() || '未知';
+}
 
 // ─── Excel 日期序列号转换 ────────────────────────────────────
 function excelDateToISO(val) {
@@ -277,6 +337,28 @@ document.getElementById('signFile').addEventListener('change', e => {
     });
     document.getElementById('signUploadText').textContent = f.name + ' (' + signSet.size + '条)';
     document.getElementById('signUploadBtn').classList.add('loaded');
+    render();
+  });
+});
+
+document.getElementById('uwPendingFile').addEventListener('change', e => {
+  const f = e.target.files[0]; if (!f) return;
+  readFile(f, rows => {
+    uwPendingMap.clear();
+    rows.forEach(r => {
+      // 支持：保单号列、Policy Number列、或第一列
+      const col = findCol(r, ['policy number','Policy Number','保单号','保單號','POLICY_NUMBER']) ||
+                  Object.keys(r)[0];
+      // 尝试读取日期列（提交日期/pending日期）
+      const dateCol = findCol(r, ['Submission Date','submission date','pending date','Pending Date','日期','date']);
+      if (col && r[col]) {
+        const pn = String(r[col]).trim().toUpperCase();
+        const dt = dateCol ? excelDateToISO(r[dateCol]) : null;
+        if (pn) uwPendingMap.set(pn, { date: dt });
+      }
+    });
+    document.getElementById('uwPendingUploadText').textContent = f.name + ' (' + uwPendingMap.size + '件)';
+    document.getElementById('uwPendingUploadBtn').classList.add('loaded');
     render();
   });
 });
@@ -426,6 +508,7 @@ function render() {
   document.getElementById('reportSection').style.display = 'block';
   renderCharts(nodes, filteredData);
   renderReport(nodes);
+  renderUWSection(filteredData);
 }
 
 // ─── 图表渲染 ────────────────────────────────────────────────
@@ -504,6 +587,193 @@ function copyReport() {
     btn.textContent = '✅ 已複製';
     setTimeout(() => btn.textContent = '複製日報', 2000);
   });
+}
+
+// ─── 核保人员工作量区块渲染 ──────────────────────────────────
+function renderUWSection(data) {
+  const sec = document.getElementById('uwSection');
+  const grid = document.getElementById('uwGrid');
+
+  if (!data.length) { sec.style.display = 'none'; return; }
+
+  const sample = data[0];
+  const statusCol  = findCol(sample, ['Proposal Status','proposal status','status','Status']);
+  const policyCol  = findCol(sample, ['Policy Number','policy number','保单号','保單號','POLICY_NUMBER']);
+  const uwNameCol  = findCol(sample, ['LAST_UW_NAME','last_uw_name','Last UW Name','核保人員','UW_NAME']);
+  const subCol     = findCol(sample, ['Submission Date','submission date','申请日期','申請日期','SUBMISSION_DATE']);
+  const nameCol    = findCol(sample, ['PH_NAME','PH_NAME_CN','ph_name','Applicant Name','申請人姓名','APPLICANT_NAME']);
+
+  // 筛选 underwriting in progress 的记录
+  const inProgress = data.filter(r => {
+    const st = statusCol ? String(r[statusCol]||'').trim().toLowerCase() : '';
+    return st === 'underwriting in progress';
+  });
+
+  if (!inProgress.length && uwPendingMap.size === 0) {
+    sec.style.display = 'none';
+    return;
+  }
+
+  // 按核保人员分组（underwriting in progress）
+  const uwGroups = {}; // name -> [{row, policyNo, subDate, days, hasPending, pendingDate}]
+  const today = new Date();
+
+  inProgress.forEach(r => {
+    const rawName = uwNameCol ? String(r[uwNameCol]||'').trim() : '';
+    const name = normalizeUWName(rawName) || '未指定';
+    const pn = policyCol ? String(r[policyCol]||'').trim().toUpperCase() : '';
+    const sub = subCol ? excelDateToISO(r[subCol]) : null;
+    const days = sub ? Math.floor((today - new Date(sub)) / 86400000) : null;
+    const applicant = nameCol ? String(r[nameCol]||'').trim() : '';
+    const pendingInfo = uwPendingMap.get(pn);
+    const hasPending = !!pendingInfo;
+    const pendingDate = pendingInfo ? pendingInfo.date : null;
+
+    if (!uwGroups[name]) uwGroups[name] = [];
+    uwGroups[name].push({ row: r, policyNo: pn, subDate: sub, days, applicant, hasPending, pendingDate });
+  });
+
+  // 将 Pending 清单中、主数据无 underwriting in progress 的保单，也归入对应核保员
+  if (uwPendingMap.size > 0) {
+    uwPendingMap.forEach((info, pn) => {
+      // 检查是否已在 inProgress 中
+      const alreadyIn = Object.values(uwGroups).some(arr => arr.some(x => x.policyNo === pn));
+      if (alreadyIn) return;
+      // 在主数据中查找该保单
+      const matchRow = data.find(r => {
+        const p = policyCol ? String(r[policyCol]||'').trim().toUpperCase() : '';
+        return p === pn;
+      });
+      const rawName = matchRow && uwNameCol ? String(matchRow[uwNameCol]||'').trim() : '';
+      const name = normalizeUWName(rawName) || '待確認';
+      const sub = matchRow && subCol ? excelDateToISO(matchRow[subCol]) : null;
+      const days = sub ? Math.floor((today - new Date(sub)) / 86400000) : null;
+      const applicant = matchRow && nameCol ? String(matchRow[nameCol]||'').trim() : '';
+      if (!uwGroups[name]) uwGroups[name] = [];
+      uwGroups[name].push({ policyNo: pn, subDate: sub, days, applicant, hasPending: true, pendingDate: info.date, pendingOnly: true });
+    });
+  }
+
+  // 渲染每个核保员的卡片
+  const names = Object.keys(uwGroups).sort();
+  grid.innerHTML = names.map(name => {
+    const items = uwGroups[name].sort((a, b) => (b.days||0) - (a.days||0)); // 天数多的排前
+    const inProgressCount = items.filter(x => !x.pendingOnly).length;
+    const pendingCount = items.filter(x => x.hasPending).length;
+
+    const rows = items.map((item, i) => {
+      const daysCls = item.days > 50 ? 'days-alert' : item.days > 20 ? 'days-warn' : '';
+      const pendingTag = item.hasPending
+        ? `<span class="uw-pending-tag">🔄 Pending${item.pendingDate ? ' ' + item.pendingDate : ''}</span>` : '';
+      const pendingOnlyMark = item.pendingOnly ? '<span style="font-size:10px;color:#aaa">（僅Pending）</span>' : '';
+      return `<tr>
+        <td style="font-weight:600;color:#1a2a4a">${item.policyNo || '—'}${pendingOnlyMark}</td>
+        <td style="color:#555;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${item.applicant || '—'}</td>
+        <td>${item.subDate || '—'}</td>
+        <td class="${daysCls}">${item.days !== null ? item.days + '天' : '—'}</td>
+        <td>${pendingTag}</td>
+      </tr>`;
+    }).join('');
+
+    return `<div class="uw-card">
+      <div class="uw-card-head">
+        <span class="name">👤 ${name}</span>
+        <span class="counts">
+          <span>處理中 ${inProgressCount}</span>
+          ${pendingCount ? `<span>Pending ${pendingCount}</span>` : ''}
+        </span>
+      </div>
+      <div class="uw-card-body">
+        <table class="uw-table">
+          <thead><tr>
+            <th>保單號</th><th>申請人</th><th>投保日期</th><th>審核天數</th><th>Pending狀態</th>
+          </tr></thead>
+          <tbody>${rows || '<tr><td colspan="5" class="uw-upload-hint">暫無數據</td></tr>'}</tbody>
+        </table>
+      </div>
+      <div class="uw-card-foot">
+        <button class="uw-export-btn" onclick="exportSingleUW('${name}')">📥 導出 ${name} 清單</button>
+      </div>
+    </div>`;
+  }).join('');
+
+  // 保存分组数据供导出用
+  window._uwGroups = uwGroups;
+  sec.style.display = 'block';
+}
+
+// ─── 导出单个核保员清单 ──────────────────────────────────────
+function exportSingleUW(name) {
+  const groups = window._uwGroups || {};
+  const items = groups[name] || [];
+  const dateStr = new Date().toISOString().slice(0,10).replace(/-/g,'');
+  const wsData = [['序號','保單號','申請人姓名','投保日期','審核天數','是否Pending','Pending日期','備註']];
+  items.forEach((item, i) => {
+    wsData.push([
+      i + 1,
+      item.policyNo || '',
+      item.applicant || '',
+      item.subDate || '',
+      item.days !== null ? item.days : '',
+      item.hasPending ? '是' : '否',
+      item.pendingDate || '',
+      item.pendingOnly ? '僅在Pending清單，主數據無處理中記錄' : ''
+    ]);
+  });
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
+  ws['!cols'] = [{wch:6},{wch:16},{wch:16},{wch:14},{wch:10},{wch:10},{wch:14},{wch:30}];
+  XLSX.utils.book_append_sheet(wb, ws, name.slice(0,31));
+  XLSX.writeFile(wb, `核保工作量_${name}_${dateStr}.xlsx`);
+}
+
+// ─── 导出全员分配 Excel（每人一个 Sheet）────────────────────
+function exportUWExcel() {
+  const groups = window._uwGroups;
+  if (!groups || !Object.keys(groups).length) {
+    alert('請先上傳主數據（含 underwriting in progress 記錄）後再導出');
+    return;
+  }
+  const dateStr = new Date().toISOString().slice(0,10).replace(/-/g,'');
+  const wb = XLSX.utils.book_new();
+
+  // 汇总 Sheet
+  const summaryData = [['核保人員','處理中件數','Pending件數','合計','最長審核天數','平均審核天數']];
+  Object.keys(groups).sort().forEach(name => {
+    const items = groups[name];
+    const inProg = items.filter(x => !x.pendingOnly).length;
+    const pend   = items.filter(x => x.hasPending).length;
+    const daysArr = items.map(x => x.days).filter(d => d !== null);
+    const maxDays = daysArr.length ? Math.max(...daysArr) : '';
+    const avgDays = daysArr.length ? Math.round(daysArr.reduce((a,b)=>a+b,0)/daysArr.length) : '';
+    summaryData.push([name, inProg, pend, inProg + pend, maxDays, avgDays]);
+  });
+  const wsSummary = XLSX.utils.aoa_to_sheet(summaryData);
+  wsSummary['!cols'] = [{wch:14},{wch:12},{wch:12},{wch:8},{wch:14},{wch:14}];
+  XLSX.utils.book_append_sheet(wb, wsSummary, '總覽');
+
+  // 每人一个 Sheet
+  Object.keys(groups).sort().forEach(name => {
+    const items = groups[name];
+    const wsData = [['序號','保單號','申請人姓名','投保日期','審核天數','是否Pending','Pending日期','備註']];
+    items.sort((a,b)=>(b.days||0)-(a.days||0)).forEach((item, i) => {
+      wsData.push([
+        i + 1,
+        item.policyNo || '',
+        item.applicant || '',
+        item.subDate || '',
+        item.days !== null ? item.days : '',
+        item.hasPending ? '是' : '否',
+        item.pendingDate || '',
+        item.pendingOnly ? '僅在Pending清單，主數據無處理中記錄' : ''
+      ]);
+    });
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    ws['!cols'] = [{wch:6},{wch:16},{wch:16},{wch:14},{wch:10},{wch:10},{wch:14},{wch:30}];
+    XLSX.utils.book_append_sheet(wb, ws, name.slice(0,31));
+  });
+
+  XLSX.writeFile(wb, `核保工作量分配_${dateStr}.xlsx`);
 }
 
 // ─── 模态框：显示节点明细清单 ────────────────────────────────
