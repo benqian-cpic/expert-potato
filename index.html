@@ -431,7 +431,15 @@ function calcNodes(data) {
 
     if (WAIT_ENTRY.includes(st)) { nodes.waitEntry++; recs.waitEntry.push(r); return; }
     if (WAIT_UW.includes(st))    { nodes.waitUW++;    recs.waitUW.push(r);    return; }
-    if (PENDING_ISSUED.includes(st)) { nodes.pendingIssued++; recs.pendingIssued.push(r); return; }
+    if (PENDING_ISSUED.includes(st)) {
+      // 若保单号在 Pending 回销清单中 → 已回销待处理；否则 → 问题件待回销
+      if (uwPendingMap.size > 0 && uwPendingMap.has(pn)) {
+        nodes.pendingBack++; recs.pendingBack.push(r);
+      } else {
+        nodes.pendingIssued++; recs.pendingIssued.push(r);
+      }
+      return;
+    }
     if (WAIT_PAY.includes(st))   { nodes.waitPay++;   recs.waitPay.push(r);   return; }
 
     if (INFORCE.includes(st)) {
