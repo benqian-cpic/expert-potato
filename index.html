@@ -793,6 +793,7 @@ function showModal(key, label) {
   const nameCol   = findCol(sample, ['PH_NAME','PH_NAME_CN','ph_name','Applicant Name','applicant name','申請人姓名','APPLICANT_NAME','PH_FIRST_NAME']);
   const subCol    = findCol(sample, ['Submission Date','submission date','申请日期','申請日期','SUBMISSION_DATE']);
   const statusCol = findCol(sample, ['Proposal Status','proposal status','status','Status','狀態']);
+  const uwCol     = findCol(sample, ['LAST_UW_NAME','last_uw_name','Last UW Name','UW_NAME','uw_name','核保人員','核保人员']);
   const today = new Date();
 
   const rows = records.map((r, i) => {
@@ -800,6 +801,7 @@ function showModal(key, label) {
     const name = nameCol   ? String(r[nameCol]||'').trim()   : '—';
     const sub  = subCol    ? excelDateToISO(r[subCol])       : null;
     const st   = statusCol ? String(r[statusCol]||'').trim() : '—';
+    const uw   = uwCol     ? String(r[uwCol]||'').trim()     : '—';
     let days = '—', daysCls = '';
     if (sub) {
       const diff = Math.floor((today - new Date(sub)) / 86400000);
@@ -812,12 +814,13 @@ function showModal(key, label) {
       <td>${name}</td>
       <td>${sub || '—'}</td>
       <td>${st}</td>
+      <td>${uw}</td>
       <td class="${daysCls}">${days}</td>
     </tr>`;
   }).join('');
 
   const noDataMsg = records.length === 0
-    ? '<tr><td colspan="6" style="text-align:center;color:#aaa;padding:30px">此節點暫無數據</td></tr>' : '';
+    ? '<tr><td colspan="7" style="text-align:center;color:#aaa;padding:30px">此節點暫無數據</td></tr>' : '';
 
   document.getElementById('modalTitle').textContent = `${label} — 共 ${records.length} 件`;
   document.getElementById('modalBody').innerHTML = `
@@ -828,13 +831,14 @@ function showModal(key, label) {
         <th>申請人姓名</th>
         <th>投保日期</th>
         <th>當前狀態</th>
+        <th>核保人員</th>
         <th style="width:80px">待處理天數</th>
       </tr></thead>
       <tbody>${rows || noDataMsg}</tbody>
     </table>`;
 
   // 存当前导出上下文
-  document.getElementById('modalExportBtn').onclick = () => exportNodeExcel(key, label, records, policyCol, nameCol, subCol, statusCol);
+  document.getElementById('modalExportBtn').onclick = () => exportNodeExcel(key, label, records, policyCol, nameCol, subCol, statusCol, uwCol);
   document.getElementById('modalOverlay').classList.add('show');
 }
 
@@ -850,26 +854,27 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ─── 导出节点清单为 Excel ────────────────────────────────────
-function exportNodeExcel(key, label, records, policyCol, nameCol, subCol, statusCol) {
+function exportNodeExcel(key, label, records, policyCol, nameCol, subCol, statusCol, uwCol) {
   const today = new Date();
   const dateStr = today.toISOString().slice(0,10).replace(/-/g,'');
   const cleanLabel = label.replace(/[^\u4e00-\u9fa5a-zA-Z0-9]/g, '');
 
-  const wsData = [['序號','保單號','申請人姓名','投保日期','當前狀態','待處理天數']];
+  const wsData = [['序號','保單號','申請人姓名','投保日期','當前狀態','核保人員','待處理天數']];
   records.forEach((r, i) => {
     const pn   = policyCol ? String(r[policyCol]||'').trim() : '';
     const name = nameCol   ? String(r[nameCol]||'').trim()   : '';
     const sub  = subCol    ? excelDateToISO(r[subCol])       : null;
     const st   = statusCol ? String(r[statusCol]||'').trim() : '';
+    const uw   = uwCol     ? String(r[uwCol]||'').trim()     : '';
     let days = '';
     if (sub) days = Math.floor((today - new Date(sub)) / 86400000);
-    wsData.push([i+1, pn, name, sub||'', st, days]);
+    wsData.push([i+1, pn, name, sub||'', st, uw, days]);
   });
 
   const wb = XLSX.utils.book_new();
   const ws = XLSX.utils.aoa_to_sheet(wsData);
   // 设置列宽
-  ws['!cols'] = [{wch:6},{wch:16},{wch:16},{wch:14},{wch:28},{wch:12}];
+  ws['!cols'] = [{wch:6},{wch:16},{wch:16},{wch:14},{wch:28},{wch:14},{wch:12}];
   XLSX.utils.book_append_sheet(wb, ws, cleanLabel);
   XLSX.writeFile(wb, `${cleanLabel}_${dateStr}.xlsx`);
 }
