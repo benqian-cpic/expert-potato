@@ -31,7 +31,22 @@ body{font-family:'PingFang TC','Microsoft JhengHei',sans-serif;background:#f0f4f
 .btn-secondary{background:#f0f4f8;color:#2d4a7a;border:1px solid #c0cce0}.btn-secondary:hover{background:#e0e8f8}
 .filter-info{font-size:12px;color:#e67e22;font-weight:500;padding:4px 10px;background:#fef9f0;border-radius:4px}
 .nodes-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px;margin-bottom:24px}
-.node-card{background:#fff;border-radius:12px;padding:18px 20px;box-shadow:0 2px 8px rgba(0,0,0,.06);border-left:4px solid #2d4a7a;transition:transform .15s,box-shadow .15s;cursor:default}
+.node-card{background:#fff;border-radius:12px;padding:18px 20px;box-shadow:0 2px 8px rgba(0,0,0,.06);border-left:4px solid #2d4a7a;transition:transform .15s,box-shadow .15s;cursor:pointer}
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center}
+.modal-overlay.show{display:flex}
+.modal-box{background:#fff;border-radius:14px;width:90%;max-width:900px;max-height:88vh;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,.2)}
+.modal-header{display:flex;align-items:center;justify-content:space-between;padding:18px 24px;border-bottom:1px solid #f0f4f8}
+.modal-title{font-size:16px;font-weight:700;color:#1a2a4a}
+.modal-close{background:none;border:none;font-size:22px;cursor:pointer;color:#999;line-height:1;padding:0 4px}
+.modal-close:hover{color:#333}
+.modal-body{overflow-y:auto;flex:1;padding:0 24px}
+.modal-table{width:100%;border-collapse:collapse;font-size:13px;margin:16px 0}
+.modal-table th{background:#1a2a4a;color:#fff;padding:10px 12px;text-align:left;position:sticky;top:0;z-index:1}
+.modal-table td{padding:9px 12px;border-bottom:1px solid #f0f4f8;color:#333}
+.modal-table tr:hover td{background:#f8faff}
+.modal-table .days-warn{color:#f39c12;font-weight:600}
+.modal-table .days-alert{color:#e74c3c;font-weight:600}
+.modal-footer{padding:14px 24px;border-top:1px solid #f0f4f8;display:flex;justify-content:flex-end;gap:10px}
 .node-card:hover{transform:translateY(-2px);box-shadow:0 4px 16px rgba(0,0,0,.1)}
 .node-card.warn{border-left-color:#f39c12;background:#fffbf0}
 .node-card.alert{border-left-color:#e74c3c;background:#fff5f5}
@@ -164,6 +179,7 @@ let sfSet = new Set();   // 邮寄保单号集合
 let printSet = new Set();// 打印保单号集合
 let signSet = new Set(); // 签收保单号集合
 let barChartInst = null, lineChartInst = null, pieChartInst = null;
+let nodeRecords = {}; // 每个节点对应的记录数组
 
 // ─── Excel 日期序列号转换 ────────────────────────────────────
 function excelDateToISO(val) {
@@ -309,19 +325,17 @@ function calcNodes(data) {
   const ackCol = findCol(s, ['Policy Acknowledgement/Mail Date','Policy Acknowledgement Mail Date','签收日期','簽收日期']);
 
   const nodes = {
-    total: 0,
-    waitEntry: 0,
-    waitUW: 0,
-    pendingIssued: 0,
-    pendingBack: 0,
-    waitPay: 0,
-    waitPrint: 0,
-    waitMail: 0,
-    waitSign: 0,
-    signed: 0
+    total: 0, waitEntry: 0, waitUW: 0, pendingIssued: 0,
+    pendingBack: 0, waitPay: 0, waitPrint: 0, waitMail: 0, waitSign: 0, signed: 0
+  };
+  // 同步收集每个节点的记录
+  const recs = {
+    total:[], waitEntry:[], waitUW:[], pendingIssued:[],
+    pendingBack:[], waitPay:[], waitPrint:[], waitMail:[], waitSign:[], signed:[]
   };
 
   nodes.total = data.length;
+  recs.total = data.slice();
 
   const WAIT_ENTRY = ['initial registration completed','initial registration in progress','verification in progress','waiting for verification'];
   const WAIT_UW = ['waiting for underwriting'];
@@ -333,32 +347,29 @@ function calcNodes(data) {
     const st = statusCol ? String(r[statusCol]||'').trim().toLowerCase() : '';
     const pn = policyCol ? String(r[policyCol]||'').trim().toUpperCase() : '';
 
-    if (WAIT_ENTRY.includes(st)) { nodes.waitEntry++; return; }
-    if (WAIT_UW.includes(st)) { nodes.waitUW++; return; }
-    if (PENDING_ISSUED.includes(st)) { nodes.pendingIssued++; return; }
-    if (WAIT_PAY.includes(st)) { nodes.waitPay++; return; }
+    if (WAIT_ENTRY.includes(st)) { nodes.waitEntry++; recs.waitEntry.push(r); return; }
+    if (WAIT_UW.includes(st))    { nodes.waitUW++;    recs.waitUW.push(r);    return; }
+    if (PENDING_ISSUED.includes(st)) { nodes.pendingIssued++; recs.pendingIssued.push(r); return; }
+    if (WAIT_PAY.includes(st))   { nodes.waitPay++;   recs.waitPay.push(r);   return; }
 
     if (INFORCE.includes(st)) {
-      // 已签收
-      if (signSet.size > 0 && signSet.has(pn)) { nodes.signed++; return; }
+      if (signSet.size > 0 && signSet.has(pn)) { nodes.signed++; recs.signed.push(r); return; }
       const ackDate = ackCol ? excelDateToISO(r[ackCol]) : null;
-      if (ackDate) { nodes.signed++; return; }
+      if (ackDate) { nodes.signed++; recs.signed.push(r); return; }
 
-      // 已邮寄待签收
-      if (sfSet.size > 0 && sfSet.has(pn)) { nodes.waitSign++; return; }
+      if (sfSet.size > 0 && sfSet.has(pn)) { nodes.waitSign++; recs.waitSign.push(r); return; }
       const despatchDate = despatchCol ? excelDateToISO(r[despatchCol]) : null;
-      if (despatchDate) { nodes.waitSign++; return; }
+      if (despatchDate) { nodes.waitSign++; recs.waitSign.push(r); return; }
 
-      // 已打印待邮寄
-      if (printSet.size > 0 && printSet.has(pn)) { nodes.waitMail++; return; }
+      if (printSet.size > 0 && printSet.has(pn)) { nodes.waitMail++; recs.waitMail.push(r); return; }
       const printDate = printDateCol ? excelDateToISO(r[printDateCol]) : null;
-      if (printDate) { nodes.waitMail++; return; }
+      if (printDate) { nodes.waitMail++; recs.waitMail.push(r); return; }
 
-      // 已承保待打印
-      nodes.waitPrint++;
+      nodes.waitPrint++; recs.waitPrint.push(r);
     }
   });
 
+  nodeRecords = recs;
   return nodes;
 }
 
@@ -403,10 +414,11 @@ function render() {
     const n = nodes[d.key] ?? '-';
     const cls = typeof n === 'number' ? cardClass(n) : '';
     const badge = typeof n === 'number' ? cardBadge(n) : '';
-    return `<div class="node-card ${cls}">
+    return `<div class="node-card ${cls}" onclick="showModal('${d.key}','${d.icon} ${d.label}')" title="點擊查看明細清單">
       <div class="label">${d.icon} ${d.label}</div>
       <div class="count">${n}</div>
       ${badge}
+      <div style="font-size:11px;color:#aaa;margin-top:4px">點擊查看清單 →</div>
     </div>`;
   }).join('');
 
@@ -493,6 +505,110 @@ function copyReport() {
     setTimeout(() => btn.textContent = '複製日報', 2000);
   });
 }
+
+// ─── 模态框：显示节点明细清单 ────────────────────────────────
+function showModal(key, label) {
+  if (!mainData.length) { alert('請先上傳主數據文件'); return; }
+  const records = nodeRecords[key] || [];
+  const sample = records.length ? records[0] : (filteredData.length ? filteredData[0] : {});
+  const policyCol = findCol(sample, ['Policy Number','policy number','保单号','保單號','POLICY_NUMBER']);
+  const nameCol   = findCol(sample, ['PH_NAME','PH_NAME_CN','ph_name','Applicant Name','applicant name','申請人姓名','APPLICANT_NAME','PH_FIRST_NAME']);
+  const subCol    = findCol(sample, ['Submission Date','submission date','申请日期','申請日期','SUBMISSION_DATE']);
+  const statusCol = findCol(sample, ['Proposal Status','proposal status','status','Status','狀態']);
+  const today = new Date();
+
+  const rows = records.map((r, i) => {
+    const pn   = policyCol ? String(r[policyCol]||'').trim() : '—';
+    const name = nameCol   ? String(r[nameCol]||'').trim()   : '—';
+    const sub  = subCol    ? excelDateToISO(r[subCol])       : null;
+    const st   = statusCol ? String(r[statusCol]||'').trim() : '—';
+    let days = '—', daysCls = '';
+    if (sub) {
+      const diff = Math.floor((today - new Date(sub)) / 86400000);
+      days = diff;
+      daysCls = diff > 50 ? 'days-alert' : diff > 20 ? 'days-warn' : '';
+    }
+    return `<tr>
+      <td>${i+1}</td>
+      <td style="font-weight:600">${pn}</td>
+      <td>${name}</td>
+      <td>${sub || '—'}</td>
+      <td>${st}</td>
+      <td class="${daysCls}">${days}</td>
+    </tr>`;
+  }).join('');
+
+  const noDataMsg = records.length === 0
+    ? '<tr><td colspan="6" style="text-align:center;color:#aaa;padding:30px">此節點暫無數據</td></tr>' : '';
+
+  document.getElementById('modalTitle').textContent = `${label} — 共 ${records.length} 件`;
+  document.getElementById('modalBody').innerHTML = `
+    <table class="modal-table">
+      <thead><tr>
+        <th style="width:50px">序號</th>
+        <th>保單號</th>
+        <th>申請人姓名</th>
+        <th>投保日期</th>
+        <th>當前狀態</th>
+        <th style="width:80px">待處理天數</th>
+      </tr></thead>
+      <tbody>${rows || noDataMsg}</tbody>
+    </table>`;
+
+  // 存当前导出上下文
+  document.getElementById('modalExportBtn').onclick = () => exportNodeExcel(key, label, records, policyCol, nameCol, subCol, statusCol);
+  document.getElementById('modalOverlay').classList.add('show');
+}
+
+function closeModal() {
+  document.getElementById('modalOverlay').classList.remove('show');
+}
+
+// 点击遮罩关闭
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('modalOverlay').addEventListener('click', e => {
+    if (e.target === document.getElementById('modalOverlay')) closeModal();
+  });
+});
+
+// ─── 导出节点清单为 Excel ────────────────────────────────────
+function exportNodeExcel(key, label, records, policyCol, nameCol, subCol, statusCol) {
+  const today = new Date();
+  const dateStr = today.toISOString().slice(0,10).replace(/-/g,'');
+  const cleanLabel = label.replace(/[^\u4e00-\u9fa5a-zA-Z0-9]/g, '');
+
+  const wsData = [['序號','保單號','申請人姓名','投保日期','當前狀態','待處理天數']];
+  records.forEach((r, i) => {
+    const pn   = policyCol ? String(r[policyCol]||'').trim() : '';
+    const name = nameCol   ? String(r[nameCol]||'').trim()   : '';
+    const sub  = subCol    ? excelDateToISO(r[subCol])       : null;
+    const st   = statusCol ? String(r[statusCol]||'').trim() : '';
+    let days = '';
+    if (sub) days = Math.floor((today - new Date(sub)) / 86400000);
+    wsData.push([i+1, pn, name, sub||'', st, days]);
+  });
+
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
+  // 设置列宽
+  ws['!cols'] = [{wch:6},{wch:16},{wch:16},{wch:14},{wch:28},{wch:12}];
+  XLSX.utils.book_append_sheet(wb, ws, cleanLabel);
+  XLSX.writeFile(wb, `${cleanLabel}_${dateStr}.xlsx`);
+}
 </script>
+<div id="modalOverlay" class="modal-overlay">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span class="modal-title" id="modalTitle"></span>
+      <button class="modal-close" onclick="closeModal()">×</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal()">關閉</button>
+      <button class="btn btn-primary" id="modalExportBtn">📥 導出 Excel</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
