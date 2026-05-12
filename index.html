@@ -124,6 +124,71 @@ body{font-family:'PingFang TC','Microsoft JhengHei',sans-serif;background:#f0f4f
 .uw-stat-item.inprog .s-num{color:#2d4a7a}
 .uw-stat-item.wait .s-num{color:#f39c12}
 .uw-stat-foot{padding:8px 16px;border-top:1px solid #f0f4f8;display:flex;justify-content:flex-end;gap:8px}
+/* ─── 核保分配模块 ─── */
+.assign-section{background:#fff;border-radius:12px;padding:20px 24px;box-shadow:0 2px 8px rgba(0,0,0,.06);margin-bottom:24px}
+.assign-section h2{font-size:15px;font-weight:600;color:#1a2a4a;margin-bottom:4px;display:flex;align-items:center;gap:8px}
+.assign-desc{font-size:12px;color:#888;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid #f0f4f8}
+.assign-rule-bar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;align-items:center}
+.assign-rule-tag{font-size:11px;padding:4px 10px;border-radius:12px;font-weight:600;border:1px solid}
+.assign-rule-tag.green{background:#e8f8f0;color:#1a6b3a;border-color:#b7e4c7}
+.assign-rule-tag.orange{background:#fff3e0;color:#b45309;border-color:#fcd34d}
+.assign-rule-tag.red{background:#fff0f0;color:#b91c1c;border-color:#fca5a5}
+.assign-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px;margin-bottom:16px}
+.assign-card{border-radius:10px;overflow:hidden;border:1.5px solid #e0e8f8}
+.assign-card-head{padding:10px 14px;font-size:13px;font-weight:700;color:#fff;display:flex;align-items:center;justify-content:space-between}
+.assign-card-head .ac-name{font-size:14px}
+.assign-card-head .ac-count{font-size:20px;font-weight:800}
+.assign-card-body{padding:10px 14px;font-size:12px;color:#555;line-height:1.8;background:#fafbff}
+.assign-card-body .ch-tag{display:inline-block;padding:1px 7px;border-radius:8px;font-size:10px;font-weight:600;margin-right:4px}
+.ch-manual{background:#dbeafe;color:#1e40af}
+.ch-esub{background:#d1fae5;color:#065f46}
+.assign-footer{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;padding-top:12px;border-top:1px solid #f0f4f8}
+.assign-footer .rule-active{font-size:12px;font-weight:600;padding:5px 12px;border-radius:6px}
+.rule-normal{background:#e8f8f0;color:#1a6b3a}
+.rule-esub-split{background:#fff3e0;color:#b45309}
+.rule-all-split{background:#fff0f0;color:#b91c1c}
+/* ─── SLA时效模块 ─── */
+.sla-section{background:#fff;border-radius:12px;padding:20px 24px;box-shadow:0 2px 8px rgba(0,0,0,.06);margin-bottom:24px}
+.sla-section h2{font-size:15px;font-weight:600;color:#1a2a4a;margin-bottom:4px;display:flex;align-items:center;gap:8px}
+.sla-desc{font-size:12px;color:#888;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid #f0f4f8}
+.sla-summary{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+.sla-badge{display:flex;align-items:center;gap:8px;padding:10px 16px;border-radius:8px;border:1.5px solid;cursor:pointer;transition:box-shadow .15s}
+.sla-badge:hover{box-shadow:0 2px 8px rgba(0,0,0,.1)}
+.sla-badge .sb-num{font-size:26px;font-weight:800;line-height:1}
+.sla-badge .sb-info{display:flex;flex-direction:column}
+.sla-badge .sb-label{font-size:12px;font-weight:600}
+.sla-badge .sb-limit{font-size:10px;opacity:.75}
+.sla-entry{background:#fff3e0;border-color:#fcd34d;color:#92400e}
+.sla-uw{background:#fef3c7;border-color:#fbbf24;color:#78350f}
+.sla-inprog{background:#fee2e2;border-color:#fca5a5;color:#991b1b}
+.sla-table-wrap{margin-top:10px}
+.sla-group{margin-bottom:20px}
+.sla-group-title{font-size:13px;font-weight:700;color:#1a2a4a;margin-bottom:8px;padding:6px 12px;border-radius:6px;display:flex;align-items:center;gap:6px}
+.sla-group-title.entry-title{background:#fff3e0;color:#92400e}
+.sla-group-title.uw-title{background:#fef9c3;color:#78350f}
+.sla-group-title.inprog-title{background:#fee2e2;color:#991b1b}
+.sla-tbl{width:100%;border-collapse:collapse;font-size:12px}
+.sla-tbl th{background:#1a2a4a;color:#fff;padding:8px 10px;text-align:left;position:sticky;top:0}
+.sla-tbl td{padding:7px 10px;border-bottom:1px solid #f5f7fa;color:#333;vertical-align:middle}
+.sla-tbl tr:hover td{background:#fffbf0}
+.sla-overdue-days{font-weight:700;color:#e74c3c}
+.sla-warn-days{font-weight:600;color:#f39c12}
+.sla-export-row{display:flex;justify-content:flex-end;gap:8px;margin-top:12px}
+/* ─── Webhook 设置面板 ─── */
+.webhook-bar{background:#f0f6ff;border:1.5px solid #c7d8f5;border-radius:10px;padding:12px 18px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.webhook-bar label{font-size:12px;font-weight:600;color:#1a2a4a;white-space:nowrap}
+.webhook-input{flex:1;min-width:200px;font-size:12px;padding:6px 10px;border:1.5px solid #c7d8f5;border-radius:6px;outline:none}
+.webhook-input:focus{border-color:#2d4a7a}
+.webhook-save-btn{font-size:12px;padding:6px 14px;background:#2d4a7a;color:#fff;border:none;border-radius:6px;cursor:pointer;white-space:nowrap}
+.webhook-save-btn:hover{background:#1a2a4a}
+.webhook-status{font-size:11px;color:#27ae60;font-weight:600}
+.webhook-status.err{color:#e74c3c}
+/* ─── 推送按钮 ─── */
+.sla-push-btn{font-size:12px;padding:6px 14px;background:#e67e22;color:#fff;border:none;border-radius:6px;cursor:pointer;display:flex;align-items:center;gap:5px}
+.sla-push-btn:hover{background:#ca6f1e}
+.sla-push-btn:disabled{background:#ccc;cursor:not-allowed}
+.push-toast{display:inline-block;font-size:11px;color:#27ae60;font-weight:600;margin-left:8px}
+.push-toast.err{color:#e74c3c}
 </style>
 </head>
 <body>
@@ -230,7 +295,53 @@ body{font-family:'PingFang TC','Microsoft JhengHei',sans-serif;background:#f0f4f
     <h2>👤 核保人員工作量 &amp; 時效
       <button class="btn btn-primary" style="margin-left:auto;font-size:12px;padding:6px 14px" onclick="exportUWExcel()">📥 導出分配Excel</button>
     </h2>
-    <div class="uw-grid" id="uwGrid"></div>
+    <div class=\"uw-grid\" id=\"uwGrid\"></div>
+  </div>
+
+  <!-- 核保分配模块 -->
+  <div class="assign-section" id="assignSection" style="display:none">
+    <h2>🗂️ 核保工作流分配
+      <button class="btn btn-primary" style="margin-left:auto;font-size:12px;padding:6px 14px" onclick="exportAssignExcel()">📥 導出分配清單</button>
+    </h2>
+    <div class="assign-desc">
+      規則：Manual渠道→Fangyiping；E-Submission渠道→Evan。
+      E-Sub待核保 &gt;20件時，E-Sub保單平分至Evan+Eddie；
+      待核保總量 &gt;50件時，所有保單均分至Fangyiping/Evan/Eddie/Qianbin。
+    </div>
+    <div class="assign-rule-bar" id="assignRuleBar"></div>
+    <div class="assign-grid" id="assignGrid"></div>
+    <div class="assign-footer">
+      <span class="rule-active" id="assignRuleLabel"></span>
+      <div style="display:flex;gap:8px">
+        <span style="font-size:12px;color:#888">渠道欄位：</span>
+        <select id="channelColSelect" style="font-size:12px;padding:4px 8px;border:1px solid #dde3ed;border-radius:5px;color:#333" onchange="render()">
+          <option value="">自動偵測</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLA时效模块 -->
+  <div class="sla-section" id="slaSection" style="display:none">
+    <h2>⏱️ SLA 時效提醒
+      <button class="btn btn-primary" style="margin-left:auto;font-size:12px;padding:6px 14px" onclick="exportSLAExcel()">📥 導出超時報表</button>
+    </h2>
+    <div class="sla-desc">
+      超時基準：待錄入 &gt;2個自然日 ／ 待核保 &gt;2個自然日 ／ 核保中 &gt;30天
+    </div>
+    <!-- Webhook 配置区 -->
+    <div class="webhook-bar" id="webhookBar">
+      <label>🔔 釘釘推送 Webhook：</label>
+      <input type="text" class="webhook-input" id="webhookInput" placeholder="https://oapi.dingtalk.com/robot/send?access_token=...">
+      <button class="webhook-save-btn" onclick="saveWebhook()">💾 保存</button>
+      <span id="webhookStatus" class="webhook-status" style="display:none"></span>
+      <button class="sla-push-btn" id="slaPushBtn" onclick="pushSLAToDing()" title="手動推送超時提醒到釘釘群">
+        📨 手動推送提醒
+      </button>
+      <span id="pushToast" class="push-toast" style="display:none"></span>
+    </div>
+    <div class="sla-summary" id="slaSummary"></div>
+    <div class="sla-table-wrap" id="slaTableWrap"></div>
   </div>
 </div>
 
@@ -550,6 +661,8 @@ function render() {
   renderCharts(nodes, filteredData);
   renderReport(nodes);
   renderUWSection(filteredData);
+  renderAssignSection(filteredData);
+  renderSLASection(filteredData);
 }
 
 // ─── 图表渲染 ────────────────────────────────────────────────
@@ -628,6 +741,489 @@ function copyReport() {
     btn.textContent = '✅ 已複製';
     setTimeout(() => btn.textContent = '複製日報', 2000);
   });
+}
+
+// ─── 核保分配模块 ────────────────────────────────────────────
+// 渠道识别：尝试常见列名，返回小写值 'manual'/'esub'/'unknown'
+function detectChannel(row, chCol) {
+  if (!chCol) return 'unknown';
+  const val = String(row[chCol] || '').trim().toLowerCase();
+  if (val.includes('e-sub') || val.includes('esub') || val.includes('e_sub') ||
+      val.includes('electronic') || val.includes('online') || val.includes('digital')) return 'esub';
+  if (val.includes('manual') || val.includes('paper') || val.includes('walk') ||
+      val.includes('branch') || val.includes('人工') || val.includes('紙')) return 'manual';
+  return val || 'unknown';
+}
+
+function renderAssignSection(data) {
+  const sec = document.getElementById('assignSection');
+  if (!data.length) { sec.style.display = 'none'; return; }
+
+  const sample = data[0];
+  const statusCol = findCol(sample, ['Proposal Status','proposal status','status','Status']);
+  const policyCol = findCol(sample, ['Policy Number','policy number','保单号','保單號','POLICY_NUMBER']);
+  const nameCol   = findCol(sample, ['PH_NAME','PH_NAME_CN','ph_name','Applicant Name','申請人姓名','APPLICANT_NAME']);
+  const subCol    = findCol(sample, ['Submission Date','submission date','申请日期','申請日期','SUBMISSION_DATE']);
+
+  // 渠道列：优先用户选择，其次自动侦测
+  const chSelect = document.getElementById('channelColSelect');
+  const allCols = Object.keys(sample);
+  // 填充下拉选项（只填一次）
+  if (chSelect.options.length <= 1) {
+    const chCandidates = allCols.filter(k => {
+      const kl = k.toLowerCase();
+      return kl.includes('channel') || kl.includes('source') || kl.includes('submission') ||
+             kl.includes('type') || kl.includes('渠道') || kl.includes('来源') || kl.includes('業務');
+    });
+    chCandidates.forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c; opt.textContent = c;
+      chSelect.appendChild(opt);
+    });
+  }
+  let chCol = chSelect.value || findCol(sample, ['Channel','channel','Submission Channel','submission channel',
+    'Source','source','Business Type','business type','渠道','来源','業務類型','CHANNEL','BUSINESS_TYPE']);
+
+  // 筛选待核保保单
+  const waitUWRows = data.filter(r => {
+    const st = statusCol ? String(r[statusCol]||'').trim().toLowerCase() : '';
+    return st === 'waiting for underwriting';
+  });
+
+  if (!waitUWRows.length) { sec.style.display = 'none'; return; }
+
+  // 分渠道统计
+  const manualRows = waitUWRows.filter(r => detectChannel(r, chCol) === 'manual');
+  const esubRows   = waitUWRows.filter(r => detectChannel(r, chCol) === 'esub');
+  const otherRows  = waitUWRows.filter(r => {
+    const ch = detectChannel(r, chCol);
+    return ch !== 'manual' && ch !== 'esub';
+  });
+  const totalWait  = waitUWRows.length;
+  const esubCount  = esubRows.length;
+
+  // 确定适用规则
+  let activeRule = 'normal'; // normal / esub-split / all-split
+  if (totalWait > 50) activeRule = 'all-split';
+  else if (esubCount > 20) activeRule = 'esub-split';
+
+  // 按规则分配
+  const assignMap = {}; // name -> {rows, channel}
+  function addToAssign(name, rows, ch) {
+    if (!assignMap[name]) assignMap[name] = [];
+    rows.forEach(r => assignMap[name].push({ r, ch }));
+  }
+
+  if (activeRule === 'all-split') {
+    // 所有保单均分给4人
+    const persons = ['Fangyiping','Evan','Eddie','Qianbin'];
+    waitUWRows.forEach((r, i) => {
+      const name = persons[i % persons.length];
+      const ch = detectChannel(r, chCol);
+      if (!assignMap[name]) assignMap[name] = [];
+      assignMap[name].push({ r, ch });
+    });
+  } else if (activeRule === 'esub-split') {
+    // Manual → Fangyiping；E-Sub 平分 Evan+Eddie；其他 → Fangyiping
+    manualRows.forEach(r => { if (!assignMap['Fangyiping']) assignMap['Fangyiping']=[]; assignMap['Fangyiping'].push({r,ch:'manual'}); });
+    otherRows.forEach(r  => { if (!assignMap['Fangyiping']) assignMap['Fangyiping']=[]; assignMap['Fangyiping'].push({r,ch:'other'}); });
+    esubRows.forEach((r, i) => {
+      const name = i % 2 === 0 ? 'Evan' : 'Eddie';
+      if (!assignMap[name]) assignMap[name] = [];
+      assignMap[name].push({ r, ch: 'esub' });
+    });
+  } else {
+    // 默认：Manual → Fangyiping；E-Sub → Evan；其他 → Fangyiping
+    manualRows.forEach(r => { if (!assignMap['Fangyiping']) assignMap['Fangyiping']=[]; assignMap['Fangyiping'].push({r,ch:'manual'}); });
+    esubRows.forEach(r   => { if (!assignMap['Evan'])       assignMap['Evan']=[]; assignMap['Evan'].push({r,ch:'esub'}); });
+    otherRows.forEach(r  => { if (!assignMap['Fangyiping']) assignMap['Fangyiping']=[]; assignMap['Fangyiping'].push({r,ch:'other'}); });
+  }
+
+  // 颜色映射
+  const personColors = {
+    'Fangyiping':'#1565C0','Evan':'#0d7a5f','Eddie':'#6d28d9','Qianbin':'#b45309'
+  };
+
+  // 渲染规则标签
+  const ruleBarEl = document.getElementById('assignRuleBar');
+  ruleBarEl.innerHTML = `
+    <span class="assign-rule-tag ${activeRule==='normal'?'green':''}" style="opacity:${activeRule==='normal'?1:.4}">
+      ✅ 默認規則（Manual→Fangyiping / E-Sub→Evan）
+    </span>
+    <span class="assign-rule-tag ${activeRule==='esub-split'?'orange':''}" style="opacity:${activeRule==='esub-split'?1:.4}">
+      ⚡ E-Sub&gt;20件：E-Sub平分Evan+Eddie（當前E-Sub：${esubCount}件）
+    </span>
+    <span class="assign-rule-tag ${activeRule==='all-split'?'red':''}" style="opacity:${activeRule==='all-split'?1:.4}">
+      🔴 總量&gt;50件：四人均分（當前總量：${totalWait}件）
+    </span>`;
+
+  const ruleLabelEl = document.getElementById('assignRuleLabel');
+  const ruleTexts = {normal:'rule-normal',  'esub-split':'rule-esub-split', 'all-split':'rule-all-split'};
+  const ruleNames = {normal:'✅ 適用默認規則', 'esub-split':'⚡ 適用E-Sub分流規則', 'all-split':'🔴 適用四人均分規則'};
+  ruleLabelEl.className = 'rule-active ' + ruleTexts[activeRule];
+  ruleLabelEl.textContent = ruleNames[activeRule];
+
+  // 渲染分配卡片
+  const grid = document.getElementById('assignGrid');
+  const names = Object.keys(assignMap).sort();
+  grid.innerHTML = names.map(name => {
+    const items = assignMap[name];
+    const color = personColors[name] || '#2d4a7a';
+    const manCnt = items.filter(x=>x.ch==='manual').length;
+    const esCnt  = items.filter(x=>x.ch==='esub').length;
+    const otCnt  = items.filter(x=>x.ch!=='manual'&&x.ch!=='esub').length;
+    const chDetail = [
+      manCnt ? `<span class="ch-tag ch-manual">Manual ${manCnt}</span>` : '',
+      esCnt  ? `<span class="ch-tag ch-esub">E-Sub ${esCnt}</span>` : '',
+      otCnt  ? `<span class="ch-tag" style="background:#f3f4f6;color:#374151">其他 ${otCnt}</span>` : ''
+    ].filter(Boolean).join('');
+    return `<div class="assign-card">
+      <div class="assign-card-head" style="background:${color}">
+        <span class="ac-name">👤 ${name}</span>
+        <span class="ac-count">${items.length}</span>
+      </div>
+      <div class="assign-card-body">
+        <div style="margin-bottom:6px">${chDetail || '<span style="color:#aaa">暫無保單</span>'}</div>
+        <div style="font-size:11px;color:#888">點擊「導出分配清單」查看明細</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  // 保存供导出
+  window._assignMap = assignMap;
+  window._assignCols = { policyCol, nameCol, subCol, chCol };
+  sec.style.display = 'block';
+}
+
+// ─── 导出分配清单 Excel ──────────────────────────────────────
+function exportAssignExcel() {
+  const assignMap = window._assignMap;
+  if (!assignMap || !Object.keys(assignMap).length) {
+    alert('請先上傳主數據後再導出');
+    return;
+  }
+  const { policyCol, nameCol, subCol, chCol } = window._assignCols || {};
+  const dateStr = new Date().toISOString().slice(0,10).replace(/-/g,'');
+  const wb = XLSX.utils.book_new();
+
+  // 汇总sheet
+  const sumData = [['核保人員','待核保件數','Manual件數','E-Sub件數','其他渠道件數']];
+  Object.keys(assignMap).sort().forEach(name => {
+    const items = assignMap[name];
+    sumData.push([
+      name, items.length,
+      items.filter(x=>x.ch==='manual').length,
+      items.filter(x=>x.ch==='esub').length,
+      items.filter(x=>x.ch!=='manual'&&x.ch!=='esub').length
+    ]);
+  });
+  const wsSummary = XLSX.utils.aoa_to_sheet(sumData);
+  wsSummary['!cols'] = [{wch:14},{wch:12},{wch:12},{wch:12},{wch:12}];
+  XLSX.utils.book_append_sheet(wb, wsSummary, '分配總覽');
+
+  // 每人一个sheet
+  Object.keys(assignMap).sort().forEach(name => {
+    const items = assignMap[name];
+    const wsData = [['序號','保單號','申請人姓名','投保日期','渠道','核保人員']];
+    items.forEach(({r, ch}, i) => {
+      const pn  = policyCol ? String(r[policyCol]||'').trim() : '';
+      const nm  = nameCol   ? String(r[nameCol]||'').trim()   : '';
+      const sub = subCol    ? excelDateToISO(r[subCol])       : '';
+      const chLabel = ch === 'manual' ? 'Manual' : ch === 'esub' ? 'E-Submission' : String(r[chCol]||ch).trim();
+      wsData.push([i+1, pn, nm, sub||'', chLabel, name]);
+    });
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    ws['!cols'] = [{wch:6},{wch:16},{wch:16},{wch:14},{wch:16},{wch:14}];
+    XLSX.utils.book_append_sheet(wb, ws, name.slice(0,31));
+  });
+
+  XLSX.writeFile(wb, `核保分配清單_${dateStr}.xlsx`);
+}
+
+// ─── SLA时效模块 ─────────────────────────────────────────────
+function renderSLASection(data) {
+  const sec = document.getElementById('slaSection');
+  if (!data.length) { sec.style.display = 'none'; return; }
+
+  const sample = data[0];
+  const statusCol = findCol(sample, ['Proposal Status','proposal status','status','Status']);
+  const policyCol = findCol(sample, ['Policy Number','policy number','保单号','保單號','POLICY_NUMBER']);
+  const nameCol   = findCol(sample, ['PH_NAME','PH_NAME_CN','ph_name','Applicant Name','申請人姓名','APPLICANT_NAME']);
+  const subCol    = findCol(sample, ['Submission Date','submission date','申请日期','申請日期','SUBMISSION_DATE']);
+  const uwNameCol = findCol(sample, ['LAST_UW_NAME','last_uw_name','Last UW Name','核保人員','UW_NAME']);
+  const today = new Date();
+
+  // SLA阈值（自然日）
+  const SLA_ENTRY   = 2;   // 待录入
+  const SLA_UW      = 2;   // 待核保
+  const SLA_INPROG  = 30;  // 核保中
+
+  const WAIT_ENTRY_ST  = ['initial registration completed','initial registration in progress','verification in progress','waiting for verification'];
+  const WAIT_UW_ST     = ['waiting for underwriting'];
+  const INPROG_ST      = ['underwriting in progress'];
+
+  function getDays(r) {
+    const sub = subCol ? excelDateToISO(r[subCol]) : null;
+    if (!sub) return null;
+    return Math.floor((today - new Date(sub)) / 86400000);
+  }
+
+  // 三类超时记录
+  const slaEntry  = []; // 待录入超2日
+  const slaUW     = []; // 待核保超2日
+  const slaInprog = []; // 核保中超30日
+
+  data.forEach(r => {
+    const st = statusCol ? String(r[statusCol]||'').trim().toLowerCase() : '';
+    const days = getDays(r);
+    if (days === null) return;
+    if (WAIT_ENTRY_ST.includes(st) && days > SLA_ENTRY)  slaEntry.push({r, days});
+    if (WAIT_UW_ST.includes(st)    && days > SLA_UW)     slaUW.push({r, days});
+    if (INPROG_ST.includes(st)     && days > SLA_INPROG) slaInprog.push({r, days});
+  });
+
+  // 按超时天数降序排列
+  [slaEntry, slaUW, slaInprog].forEach(arr => arr.sort((a,b) => b.days - a.days));
+
+  // 渲染汇总徽章
+  const summaryEl = document.getElementById('slaSummary');
+  summaryEl.innerHTML = `
+    <div class="sla-badge sla-entry" onclick="scrollToSLAGroup('sla-entry-group')">
+      <span class="sb-num">${slaEntry.length}</span>
+      <span class="sb-info"><span class="sb-label">待錄入超時</span><span class="sb-limit">閾值：&gt;${SLA_ENTRY}個自然日</span></span>
+    </div>
+    <div class="sla-badge sla-uw" onclick="scrollToSLAGroup('sla-uw-group')">
+      <span class="sb-num">${slaUW.length}</span>
+      <span class="sb-info"><span class="sb-label">待核保超時</span><span class="sb-limit">閾值：&gt;${SLA_UW}個自然日</span></span>
+    </div>
+    <div class="sla-badge sla-inprog" onclick="scrollToSLAGroup('sla-inprog-group')">
+      <span class="sb-num">${slaInprog.length}</span>
+      <span class="sb-info"><span class="sb-label">核保中超時</span><span class="sb-limit">閾值：&gt;${SLA_INPROG}天</span></span>
+    </div>`;
+
+  // 构建表格行
+  function buildRows(items, threshold) {
+    if (!items.length) return '<tr><td colspan="6" style="text-align:center;color:#aaa;padding:16px">✅ 暫無超時保單</td></tr>';
+    return items.map((item, i) => {
+      const r = item.r;
+      const pn   = policyCol ? String(r[policyCol]||'').trim() : '—';
+      const nm   = nameCol   ? String(r[nameCol]||'').trim()   : '—';
+      const sub  = subCol    ? excelDateToISO(r[subCol])       : '—';
+      const uw   = uwNameCol ? String(r[uwNameCol]||'').trim() : '—';
+      const over = item.days - threshold;
+      const dayCls = over > 10 ? 'sla-overdue-days' : 'sla-warn-days';
+      return `<tr>
+        <td>${i+1}</td>
+        <td style="font-weight:600">${pn}</td>
+        <td>${nm}</td>
+        <td>${sub}</td>
+        <td class="${dayCls}">${item.days}天（超${over}天）</td>
+        <td>${uw || '—'}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  const tableWrap = document.getElementById('slaTableWrap');
+  tableWrap.innerHTML = `
+    <div class="sla-group" id="sla-entry-group">
+      <div class="sla-group-title entry-title">⌨️ 待錄入超時（共 ${slaEntry.length} 件，閾值 ${SLA_ENTRY} 日）</div>
+      <table class="sla-tbl">
+        <thead><tr><th style="width:40px">序號</th><th>保單號</th><th>申請人</th><th>投保日期</th><th>待處理天數</th><th>作業人員</th></tr></thead>
+        <tbody>${buildRows(slaEntry, SLA_ENTRY)}</tbody>
+      </table>
+    </div>
+    <div class="sla-group" id="sla-uw-group">
+      <div class="sla-group-title uw-title">🔍 待核保超時（共 ${slaUW.length} 件，閾值 ${SLA_UW} 日）</div>
+      <table class="sla-tbl">
+        <thead><tr><th style="width:40px">序號</th><th>保單號</th><th>申請人</th><th>投保日期</th><th>待處理天數</th><th>核保人員</th></tr></thead>
+        <tbody>${buildRows(slaUW, SLA_UW)}</tbody>
+      </table>
+    </div>
+    <div class="sla-group" id="sla-inprog-group">
+      <div class="sla-group-title inprog-title">🔄 核保中超時（共 ${slaInprog.length} 件，閾值 ${SLA_INPROG} 天）</div>
+      <table class="sla-tbl">
+        <thead><tr><th style="width:40px">序號</th><th>保單號</th><th>申請人</th><th>投保日期</th><th>核保天數</th><th>核保人員</th></tr></thead>
+        <tbody>${buildRows(slaInprog, SLA_INPROG)}</tbody>
+      </table>
+    </div>`;
+
+  // 保存供导出
+  window._slaData = { slaEntry, slaUW, slaInprog };
+  window._slaCols = { policyCol, nameCol, subCol, uwNameCol };
+  window._slaThresholds = { SLA_ENTRY, SLA_UW, SLA_INPROG };
+  sec.style.display = 'block';
+
+  // 上传数据后自动推送（静默模式：有超时才推，无超时不提示）
+  if (localStorage.getItem(WEBHOOK_KEY)) {
+    pushSLAToDing(true);
+  }
+}
+
+function scrollToSLAGroup(id) {
+  const el = document.getElementById(id);
+  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// ─── 导出SLA超时报表 ─────────────────────────────────────────
+function exportSLAExcel() {
+  const slaData = window._slaData;
+  if (!slaData) { alert('請先上傳主數據後再導出'); return; }
+  const { slaEntry, slaUW, slaInprog } = slaData;
+  const { policyCol, nameCol, subCol, uwNameCol } = window._slaCols || {};
+  const { SLA_ENTRY, SLA_UW, SLA_INPROG } = window._slaThresholds || {};
+  const dateStr = new Date().toISOString().slice(0,10).replace(/-/g,'');
+  const wb = XLSX.utils.book_new();
+
+  function buildSheet(items, threshold, sheetName) {
+    const wsData = [['序號','保單號','申請人姓名','投保日期','待處理天數','超時天數','作業人員/核保人員']];
+    items.forEach((item, i) => {
+      const r = item.r;
+      wsData.push([
+        i+1,
+        policyCol ? String(r[policyCol]||'').trim() : '',
+        nameCol   ? String(r[nameCol]||'').trim()   : '',
+        subCol    ? excelDateToISO(r[subCol]) || '' : '',
+        item.days,
+        item.days - threshold,
+        uwNameCol ? String(r[uwNameCol]||'').trim() : ''
+      ]);
+    });
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    ws['!cols'] = [{wch:6},{wch:16},{wch:16},{wch:14},{wch:12},{wch:10},{wch:18}];
+    XLSX.utils.book_append_sheet(wb, ws, sheetName);
+  }
+
+  // 汇总sheet
+  const sumData = [
+    ['SLA超時彙總報表', `生成時間：${new Date().toLocaleString('zh-TW')}`],
+    [],
+    ['類型','超時件數','閾值'],
+    ['待錄入超時', slaEntry.length,  `>${SLA_ENTRY}個自然日`],
+    ['待核保超時', slaUW.length,     `>${SLA_UW}個自然日`],
+    ['核保中超時', slaInprog.length, `>${SLA_INPROG}天`],
+    [],
+    ['⚠️ 請相關作業人員及時跟進以上超時保單']
+  ];
+  const wsSummary = XLSX.utils.aoa_to_sheet(sumData);
+  wsSummary['!cols'] = [{wch:18},{wch:14},{wch:16}];
+  XLSX.utils.book_append_sheet(wb, wsSummary, 'SLA彙總');
+
+  buildSheet(slaEntry,  SLA_ENTRY,  '待錄入超時');
+  buildSheet(slaUW,     SLA_UW,     '待核保超時');
+  buildSheet(slaInprog, SLA_INPROG, '核保中超時');
+
+  XLSX.writeFile(wb, `SLA超時報表_${dateStr}.xlsx`);
+}
+
+// ─── Webhook 配置与钉钉推送 ──────────────────────────────────
+const WEBHOOK_KEY = 'sla_dingtalk_webhook';
+
+function saveWebhook() {
+  const url = document.getElementById('webhookInput').value.trim();
+  const st  = document.getElementById('webhookStatus');
+  if (!url) { showWebhookStatus('請輸入Webhook URL', true); return; }
+  if (!url.startsWith('https://oapi.dingtalk.com/robot/send')) {
+    showWebhookStatus('URL格式不正確，請使用釘釘群機器人Webhook', true); return;
+  }
+  localStorage.setItem(WEBHOOK_KEY, url);
+  showWebhookStatus('✅ 已保存', false);
+}
+
+function showWebhookStatus(msg, isErr) {
+  const st = document.getElementById('webhookStatus');
+  st.textContent = msg;
+  st.className = 'webhook-status' + (isErr ? ' err' : '');
+  st.style.display = 'inline';
+  setTimeout(() => { st.style.display = 'none'; }, 3000);
+}
+
+function loadWebhookInput() {
+  const saved = localStorage.getItem(WEBHOOK_KEY);
+  if (saved) document.getElementById('webhookInput').value = saved;
+}
+
+// 构建钉钉Markdown消息内容
+function buildSLAMarkdown() {
+  const slaData = window._slaData;
+  if (!slaData) return null;
+  const { slaEntry, slaUW, slaInprog } = slaData;
+  const { policyCol, nameCol, uwNameCol } = window._slaCols || {};
+  const { SLA_ENTRY, SLA_UW, SLA_INPROG } = window._slaThresholds || {};
+
+  const total = slaEntry.length + slaUW.length + slaInprog.length;
+  if (total === 0) return null; // 无超时，不推送
+
+  // 按核保人员分组收集超时信息
+  const personMap = new Map();
+  function addToPerson(items, typeLabel, threshold) {
+    items.forEach(item => {
+      const r = item.r;
+      const pn  = policyCol  ? String(r[policyCol] ||'').trim() : '未知';
+      const nm  = nameCol    ? String(r[nameCol]   ||'').trim() : '';
+      const uw  = uwNameCol  ? String(r[uwNameCol] ||'').trim() : '待分配';
+      const person = uw || '待分配';
+      if (!personMap.has(person)) personMap.set(person, []);
+      personMap.get(person).push(`- ${pn}${nm?'（'+nm+'）':''} [${typeLabel}超${item.days - threshold}天]`);
+    });
+  }
+  addToPerson(slaEntry,  '待錄入', SLA_ENTRY);
+  addToPerson(slaUW,     '待核保', SLA_UW);
+  addToPerson(slaInprog, '核保中', SLA_INPROG);
+
+  const now = new Date().toLocaleString('zh-TW', {hour12:false});
+  let md = `### ⏱️ SLA超時提醒\n**時間：** ${now}\n**超時合計：** ${total}件\n\n`;
+  md += `> 待錄入>${SLA_ENTRY}日：**${slaEntry.length}件** ｜ 待核保>${SLA_UW}日：**${slaUW.length}件** ｜ 核保中>${SLA_INPROG}天：**${slaInprog.length}件**\n\n---\n`;
+  personMap.forEach((lines, person) => {
+    md += `**👤 ${person}（${lines.length}件）**\n${lines.slice(0,10).join('\n')}`;
+    if (lines.length > 10) md += `\n- ...還有${lines.length-10}件`;
+    md += '\n\n';
+  });
+  md += '請相關核保人員及時跟進以上超時保單。';
+  return md;
+}
+
+async function pushSLAToDing(isAuto) {
+  const webhook = localStorage.getItem(WEBHOOK_KEY);
+  if (!webhook) {
+    if (!isAuto) alert('請先填寫並保存釘釘Webhook URL');
+    return;
+  }
+  const md = buildSLAMarkdown();
+  if (!md) {
+    if (!isAuto) { showPushToast('✅ 目前無超時保單，無需推送', false); } return;
+  }
+
+  const btn = document.getElementById('slaPushBtn');
+  if (btn) { btn.disabled = true; btn.textContent = '推送中...'; }
+
+  try {
+    const resp = await fetch(webhook, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ msgtype: 'markdown', markdown: { title: 'SLA超時提醒', text: md } })
+    });
+    const json = await resp.json();
+    if (json.errcode === 0) {
+      showPushToast('✅ 釘釘推送成功', false);
+    } else {
+      showPushToast(`❌ 推送失敗：${json.errmsg || json.errcode}`, true);
+    }
+  } catch(e) {
+    // CORS限制时提供复制方案
+    showPushToast('❌ 瀏覽器跨域限制，請改用釘釘桌面端打開看板後推送', true);
+    console.warn('Webhook CORS:', e);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '📨 手動推送提醒'; }
+  }
+}
+
+function showPushToast(msg, isErr) {
+  const t = document.getElementById('pushToast');
+  if (!t) return;
+  t.textContent = msg;
+  t.className = 'push-toast' + (isErr ? ' err' : '');
+  t.style.display = 'inline';
+  setTimeout(() => { t.style.display = 'none'; }, 5000);
 }
 
 // ─── 核保人员工作量区块渲染（简化版：三项数字+导出）──────────
@@ -870,6 +1466,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('modalOverlay').addEventListener('click', e => {
     if (e.target === document.getElementById('modalOverlay')) closeModal();
   });
+  loadWebhookInput(); // 恢复已保存的Webhook URL
 });
 
 // ─── 导出节点清单为 Excel ────────────────────────────────────
