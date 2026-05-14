@@ -394,12 +394,12 @@ function normalizeUWName(raw) {
 function excelDateToISO(val) {
   if (val == null || val === '') return null;
   if (typeof val === 'string') {
-    // 尝试解析字符串日期
-    const d = new Date(val);
-    if (!isNaN(d)) return d.toISOString().slice(0, 10);
-    // 也可能是 DD/MM/YYYY
+    // 优先匹配 DD/MM/YYYY 或 DD-MM-YYYY（新CSV日期格式）
     const m = val.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
     if (m) return `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;
+    // 再尝试 YYYY-MM-DD 或其他标准格式
+    const d = new Date(val);
+    if (!isNaN(d)) return d.toISOString().slice(0, 10);
     return null;
   }
   if (typeof val === 'number' && val > 40000 && val < 55000) {
@@ -549,7 +549,7 @@ function clearFilter() {
 function calcNodes(data) {
   if (!data.length) return null;
   const s = data[0];
-  const statusCol = findCol(s, ['Proposal Status','proposal status','status','Status','狀態']);
+  const statusCol = findCol(s, ['Policy Status','policy status','Proposal Status','proposal status','status','Status','狀態']);
   const policyCol = findCol(s, ['Policy No','Policy Number','policy number','保单号','保單號','POLICY_NUMBER']);
   const printDateCol = findCol(s, ['PRINT_DATE','print_date','Print Date','打印日期']);
   const despatchCol = findCol(s, ['Policy Despatch Date','policy despatch date','邮寄日期','郵寄日期']);
