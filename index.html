@@ -209,7 +209,7 @@ body{font-family:'PingFang TC','Microsoft JhengHei',sans-serif;background:#f0f4f
     <h2>📂 數據上傳</h2>
     <div class="upload-row">
       <div class="upload-item">
-        <label>主數據（Policy_Wide_Table_Detail CSV/Excel）<span style="color:#e74c3c">*</span></label>
+        <label>主數據（Extraction CSV/Excel）<span style="color:#e74c3c">*</span></label>
         <label class="upload-btn" id="mainUploadBtn">
           <span>📄</span><span id="mainUploadText">選擇主數據文件</span>
           <input type="file" id="mainFile" accept=".csv,.xlsx,.xls">
@@ -319,6 +319,16 @@ body{font-family:'PingFang TC','Microsoft JhengHei',sans-serif;background:#f0f4f
         </select>
       </div>
     </div>
+  </div>
+
+  <!-- 承保失败模块 -->
+  <div class="sla-section" id="failSection" style="display:none;border-left:4px solid #e74c3c">
+    <h2 style="color:#c0392b">⚠️ 承保失敗清單
+      <button class="btn btn-primary" style="margin-left:auto;font-size:12px;padding:6px 14px;background:#e74c3c" onclick="exportFailExcel()">📥 導出清單</button>
+    </h2>
+    <div class="sla-desc">條件：O/S inforc premium = YES 且 Policy Status = Accepted（已核保通過但保費未完成）</div>
+    <div id="failSummary" style="font-size:14px;font-weight:700;color:#e74c3c;margin-bottom:12px"></div>
+    <div id="failTableWrap"></div>
   </div>
 
   <!-- SLA时效模块 -->
@@ -510,7 +520,7 @@ function applyFilter() {
   if (!from && !to) { clearFilter(); return; }
 
   const sample = mainData[0];
-  const subCol = findCol(sample, ['Submission Date','submission date','申请日期','申請日期','SUBMISSION_DATE']);
+  const subCol = findCol(sample, ['Registration Date','registration date','Submission Date','submission date','申请日期','申請日期','SUBMISSION_DATE']);
 
   filteredData = mainData.filter(r => {
     if (!subCol) return true;
@@ -540,7 +550,7 @@ function calcNodes(data) {
   if (!data.length) return null;
   const s = data[0];
   const statusCol = findCol(s, ['Proposal Status','proposal status','status','Status','狀態']);
-  const policyCol = findCol(s, ['Policy Number','policy number','保单号','保單號','POLICY_NUMBER']);
+  const policyCol = findCol(s, ['Policy No','Policy Number','policy number','保单号','保單號','POLICY_NUMBER']);
   const printDateCol = findCol(s, ['PRINT_DATE','print_date','Print Date','打印日期']);
   const despatchCol = findCol(s, ['Policy Despatch Date','policy despatch date','邮寄日期','郵寄日期']);
   const ackCol = findCol(s, ['Policy Acknowledgement/Mail Date','Policy Acknowledgement Mail Date','签收日期','簽收日期']);
@@ -558,16 +568,18 @@ function calcNodes(data) {
   nodes.total = data.length;
   recs.total = data.slice();
 
-  const WAIT_ENTRY = ['initial registration completed','initial registration in progress','verification in progress','waiting for verification'];
+  const WAIT_ENTRY = ['initial registration completed','initial registration in progress','verification in progress','waiting for verification','waiting for data entry','data entry in progress'];
   const WAIT_UW = ['waiting for underwriting'];
   const PENDING_ISSUED = ['underwriting in progress'];
   const WAIT_PAY = ['accepted'];
   const INFORCE = ['inforce'];
+  const UW_COMPLETED = ['declined','terminated','withdraw','withdrawn']; // 核保完成（拒保/終止/撤回）
 
   data.forEach(r => {
     const st = statusCol ? String(r[statusCol]||'').trim().toLowerCase() : '';
     const pn = policyCol ? String(r[policyCol]||'').trim().toUpperCase() : '';
 
+    if (UW_COMPLETED.includes(st)) return; // declined/terminated/withdrawn 视为核保完成，不计入节点
     if (WAIT_ENTRY.includes(st)) { nodes.waitEntry++; recs.waitEntry.push(r); return; }
     if (WAIT_UW.includes(st))    { nodes.waitUW++;    recs.waitUW.push(r);    return; }
     if (PENDING_ISSUED.includes(st)) {
@@ -662,6 +674,7 @@ function render() {
   renderReport(nodes);
   renderUWSection(filteredData);
   renderAssignSection(filteredData);
+  renderFailSection(filteredData);
   renderSLASection(filteredData);
 }
 
@@ -682,7 +695,7 @@ function renderCharts(nodes, data) {
 
   // 折线图（月度进单量）
   const sample = data[0];
-  const subCol = findCol(sample, ['Submission Date','submission date','申请日期','申請日期']);
+  const subCol = findCol(sample, ['Registration Date','registration date','Submission Date','submission date','申请日期','申請日期']);
   const monthMap = {};
   data.forEach(r => {
     const d = subCol ? excelDateToISO(r[subCol]) : null;
@@ -749,9 +762,11 @@ function detectChannel(row, chCol) {
   if (!chCol) return 'unknown';
   const val = String(row[chCol] || '').trim().toLowerCase();
   if (val.includes('e-sub') || val.includes('esub') || val.includes('e_sub') ||
-      val.includes('electronic') || val.includes('online') || val.includes('digital')) return 'esub';
+      val.includes('electronic') || val.includes('online') || val.includes('digital') ||
+      val === 'y') return 'esub';
   if (val.includes('manual') || val.includes('paper') || val.includes('walk') ||
-      val.includes('branch') || val.includes('人工') || val.includes('紙')) return 'manual';
+      val.includes('branch') || val.includes('人工') || val.includes('紙') ||
+      val === 'n') return 'manual';
   return val || 'unknown';
 }
 
@@ -760,10 +775,10 @@ function renderAssignSection(data) {
   if (!data.length) { sec.style.display = 'none'; return; }
 
   const sample = data[0];
-  const statusCol = findCol(sample, ['Proposal Status','proposal status','status','Status']);
-  const policyCol = findCol(sample, ['Policy Number','policy number','保单号','保單號','POLICY_NUMBER']);
-  const nameCol   = findCol(sample, ['PH_NAME','PH_NAME_CN','ph_name','Applicant Name','申請人姓名','APPLICANT_NAME']);
-  const subCol    = findCol(sample, ['Submission Date','submission date','申请日期','申請日期','SUBMISSION_DATE']);
+  const statusCol = findCol(sample, ['Policy Status','policy status','Proposal Status','proposal status','status','Status']);
+  const policyCol = findCol(sample, ['Policy No','Policy Number','policy number','保单号','保單號','POLICY_NUMBER']);
+  const nameCol   = findCol(sample, ['English Name of Applicant','english name of applicant','PH_NAME','PH_NAME_CN','ph_name','Applicant Name','申請人姓名','APPLICANT_NAME']);
+  const subCol    = findCol(sample, ['Registration Date','registration date','Submission Date','submission date','申请日期','申請日期','SUBMISSION_DATE']);
 
   // 渠道列：优先用户选择，其次自动侦测
   const chSelect = document.getElementById('channelColSelect');
@@ -773,7 +788,8 @@ function renderAssignSection(data) {
     const chCandidates = allCols.filter(k => {
       const kl = k.toLowerCase();
       return kl.includes('channel') || kl.includes('source') || kl.includes('submission') ||
-             kl.includes('type') || kl.includes('渠道') || kl.includes('来源') || kl.includes('業務');
+             kl.includes('type') || kl.includes('渠道') || kl.includes('来源') || kl.includes('業務') ||
+             kl.includes('f2f') || kl.includes('non f2f') || kl.includes('indicator');
     });
     chCandidates.forEach(c => {
       const opt = document.createElement('option');
@@ -782,7 +798,7 @@ function renderAssignSection(data) {
     });
   }
   let chCol = chSelect.value || findCol(sample, ['Channel','channel','Submission Channel','submission channel',
-    'Source','source','Business Type','business type','渠道','来源','業務類型','CHANNEL','BUSINESS_TYPE']);
+    'NON F2F Indicator','non f2f indicator','Source','source','Business Type','business type','渠道','来源','業務類型','CHANNEL','BUSINESS_TYPE']);
 
   // 筛选待核保保单
   const waitUWRows = data.filter(r => {
@@ -940,17 +956,108 @@ function exportAssignExcel() {
   XLSX.writeFile(wb, `核保分配清單_${dateStr}.xlsx`);
 }
 
+// ─── 承保失败模块 ────────────────────────────────────────────
+function renderFailSection(data) {
+  const sec = document.getElementById('failSection');
+  if (!data.length) { sec.style.display = 'none'; return; }
+
+  const sample = data[0];
+  const statusCol  = findCol(sample, ['Policy Status','policy status','Proposal Status','proposal status','status','Status']);
+  const policyCol  = findCol(sample, ['Policy No','Policy Number','policy number','保单号','保單號','POLICY_NUMBER']);
+  const nameCol    = findCol(sample, ['English Name of Applicant','english name of applicant','PH_NAME','PH_NAME_CN','ph_name','Applicant Name','申請人姓名','APPLICANT_NAME']);
+  const subCol     = findCol(sample, ['Registration Date','registration date','Submission Date','submission date','申请日期','申請日期']);
+  const uwNameCol  = findCol(sample, ['Last User ID','last user id','LAST_UW_NAME','last_uw_name','Last UW Name','核保人員','UW_NAME']);
+  const osFld      = findCol(sample, ['O/S inforc premium','o/s inforc premium','OS inforc premium','os inforc premium','O_S_inforc_premium']);
+
+  // 条件：O/S inforc premium = YES 且 Policy Status = Accepted（不区分大小写）
+  const failRows = data.filter(r => {
+    const st  = statusCol ? String(r[statusCol]||'').trim().toLowerCase() : '';
+    const osv = osFld     ? String(r[osFld]||'').trim().toUpperCase()     : '';
+    return st === 'accepted' && osv === 'YES';
+  });
+
+  const summaryEl = document.getElementById('failSummary');
+  const tableWrap = document.getElementById('failTableWrap');
+
+  if (!failRows.length) {
+    summaryEl.textContent = '✅ 目前無承保失敗保單';
+    tableWrap.innerHTML = '';
+    sec.style.display = 'block';
+    return;
+  }
+
+  summaryEl.textContent = `共 ${failRows.length} 件承保失敗保單，請核保人員跟進`;
+
+  const today = new Date();
+  const rowsHtml = failRows.map((r, i) => {
+    const pn   = policyCol  ? String(r[policyCol]||'').trim()  : '—';
+    const nm   = nameCol    ? String(r[nameCol]||'').trim()     : '—';
+    const sub  = subCol     ? excelDateToISO(r[subCol])         : null;
+    const uw   = uwNameCol  ? normalizeUWName(String(r[uwNameCol]||'').trim()) : '—';
+    const days = sub ? Math.floor((today - new Date(sub)) / 86400000) : '—';
+    const dayCls = typeof days === 'number' && days > 30 ? 'sla-overdue-days' : (typeof days === 'number' && days > 10 ? 'sla-warn-days' : '');
+    return `<tr>
+      <td>${i+1}</td>
+      <td style="font-weight:600">${pn}</td>
+      <td>${nm}</td>
+      <td>${sub || '—'}</td>
+      <td>${uw}</td>
+      <td class="${dayCls}">${days}${typeof days === 'number' ? '天' : ''}</td>
+    </tr>`;
+  }).join('');
+
+  tableWrap.innerHTML = `<table class="sla-tbl">
+    <thead><tr>
+      <th style="width:40px">序號</th>
+      <th>保單號</th>
+      <th>申請人姓名</th>
+      <th>申請日期</th>
+      <th>核保處理人</th>
+      <th>待處理天數</th>
+    </tr></thead>
+    <tbody>${rowsHtml}</tbody>
+  </table>`;
+
+  window._failRows = failRows;
+  window._failCols = { policyCol, nameCol, subCol, uwNameCol };
+  sec.style.display = 'block';
+}
+
+function exportFailExcel() {
+  const failRows = window._failRows;
+  if (!failRows || !failRows.length) { alert('目前無承保失敗保單'); return; }
+  const { policyCol, nameCol, subCol, uwNameCol } = window._failCols || {};
+  const today = new Date();
+  const dateStr = today.toISOString().slice(0,10).replace(/-/g,'');
+
+  const wsData = [['序號','保單號','申請人姓名','申請日期','核保處理人','待處理天數']];
+  failRows.forEach((r, i) => {
+    const pn   = policyCol  ? String(r[policyCol]||'').trim()  : '';
+    const nm   = nameCol    ? String(r[nameCol]||'').trim()     : '';
+    const sub  = subCol     ? excelDateToISO(r[subCol])         : null;
+    const uw   = uwNameCol  ? normalizeUWName(String(r[uwNameCol]||'').trim()) : '';
+    const days = sub ? Math.floor((today - new Date(sub)) / 86400000) : '';
+    wsData.push([i+1, pn, nm, sub||'', uw, days]);
+  });
+
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
+  ws['!cols'] = [{wch:6},{wch:16},{wch:20},{wch:14},{wch:16},{wch:12}];
+  XLSX.utils.book_append_sheet(wb, ws, '承保失敗清單');
+  XLSX.writeFile(wb, `承保失敗清單_${dateStr}.xlsx`);
+}
+
 // ─── SLA时效模块 ─────────────────────────────────────────────
 function renderSLASection(data) {
   const sec = document.getElementById('slaSection');
   if (!data.length) { sec.style.display = 'none'; return; }
 
   const sample = data[0];
-  const statusCol = findCol(sample, ['Proposal Status','proposal status','status','Status']);
-  const policyCol = findCol(sample, ['Policy Number','policy number','保单号','保單號','POLICY_NUMBER']);
-  const nameCol   = findCol(sample, ['PH_NAME','PH_NAME_CN','ph_name','Applicant Name','申請人姓名','APPLICANT_NAME']);
-  const subCol    = findCol(sample, ['Submission Date','submission date','申请日期','申請日期','SUBMISSION_DATE']);
-  const uwNameCol = findCol(sample, ['LAST_UW_NAME','last_uw_name','Last UW Name','核保人員','UW_NAME']);
+  const statusCol = findCol(sample, ['Policy Status','policy status','Proposal Status','proposal status','status','Status']);
+  const policyCol = findCol(sample, ['Policy No','Policy Number','policy number','保单号','保單號','POLICY_NUMBER']);
+  const nameCol   = findCol(sample, ['English Name of Applicant','english name of applicant','PH_NAME','PH_NAME_CN','ph_name','Applicant Name','申請人姓名','APPLICANT_NAME']);
+  const subCol    = findCol(sample, ['Registration Date','registration date','Submission Date','submission date','申请日期','申請日期','SUBMISSION_DATE']);
+  const uwNameCol = findCol(sample, ['Last User ID','last user id','LAST_UW_NAME','last_uw_name','Last UW Name','核保人員','UW_NAME']);
   const today = new Date();
 
   // SLA阈值（自然日）
@@ -1001,49 +1108,48 @@ function renderSLASection(data) {
       <span class="sb-info"><span class="sb-label">核保中超時</span><span class="sb-limit">閾值：&gt;${SLA_INPROG}天</span></span>
     </div>`;
 
-  // 构建表格行
-  function buildRows(items, threshold) {
-    if (!items.length) return '<tr><td colspan="6" style="text-align:center;color:#aaa;padding:16px">✅ 暫無超時保單</td></tr>';
-    return items.map((item, i) => {
-      const r = item.r;
-      const pn   = policyCol ? String(r[policyCol]||'').trim() : '—';
-      const nm   = nameCol   ? String(r[nameCol]||'').trim()   : '—';
-      const sub  = subCol    ? excelDateToISO(r[subCol])       : '—';
-      const uw   = uwNameCol ? String(r[uwNameCol]||'').trim() : '—';
-      const over = item.days - threshold;
-      const dayCls = over > 10 ? 'sla-overdue-days' : 'sla-warn-days';
-      return `<tr>
-        <td>${i+1}</td>
-        <td style="font-weight:600">${pn}</td>
-        <td>${nm}</td>
-        <td>${sub}</td>
-        <td class="${dayCls}">${item.days}天（超${over}天）</td>
-        <td>${uw || '—'}</td>
-      </tr>`;
-    }).join('');
+  // 按核保人员统计各区间件数
+  function buildPersonStats(items, uwNameCol) {
+    const map = {};
+    items.forEach(item => {
+      const uw = uwNameCol ? String(item.r[uwNameCol]||'').trim() : '';
+      const name = normalizeUWName(uw) || '未分配';
+      map[name] = (map[name] || 0) + 1;
+    });
+    return map;
   }
+
+  function renderPersonStatRows(statsMap) {
+    const names = Object.keys(statsMap).sort();
+    if (!names.length) return '<tr><td colspan="2" style="text-align:center;color:#aaa;padding:12px">✅ 暫無超時保單</td></tr>';
+    return names.map(n => `<tr><td style="font-weight:600;padding:8px 12px">👤 ${n}</td><td style="padding:8px 12px;font-weight:700;color:#e74c3c">${statsMap[n]} 件</td></tr>`).join('');
+  }
+
+  const entryStats  = buildPersonStats(slaEntry,  uwNameCol);
+  const uwStats     = buildPersonStats(slaUW,     uwNameCol);
+  const inprogStats = buildPersonStats(slaInprog, uwNameCol);
 
   const tableWrap = document.getElementById('slaTableWrap');
   tableWrap.innerHTML = `
     <div class="sla-group" id="sla-entry-group">
       <div class="sla-group-title entry-title">⌨️ 待錄入超時（共 ${slaEntry.length} 件，閾值 ${SLA_ENTRY} 日）</div>
-      <table class="sla-tbl">
-        <thead><tr><th style="width:40px">序號</th><th>保單號</th><th>申請人</th><th>投保日期</th><th>待處理天數</th><th>作業人員</th></tr></thead>
-        <tbody>${buildRows(slaEntry, SLA_ENTRY)}</tbody>
+      <table class="sla-tbl" style="max-width:400px">
+        <thead><tr><th>作業人員</th><th>超時件數</th></tr></thead>
+        <tbody>${renderPersonStatRows(entryStats)}</tbody>
       </table>
     </div>
     <div class="sla-group" id="sla-uw-group">
       <div class="sla-group-title uw-title">🔍 待核保超時（共 ${slaUW.length} 件，閾值 ${SLA_UW} 日）</div>
-      <table class="sla-tbl">
-        <thead><tr><th style="width:40px">序號</th><th>保單號</th><th>申請人</th><th>投保日期</th><th>待處理天數</th><th>核保人員</th></tr></thead>
-        <tbody>${buildRows(slaUW, SLA_UW)}</tbody>
+      <table class="sla-tbl" style="max-width:400px">
+        <thead><tr><th>核保人員</th><th>超時件數</th></tr></thead>
+        <tbody>${renderPersonStatRows(uwStats)}</tbody>
       </table>
     </div>
     <div class="sla-group" id="sla-inprog-group">
       <div class="sla-group-title inprog-title">🔄 核保中超時（共 ${slaInprog.length} 件，閾值 ${SLA_INPROG} 天）</div>
-      <table class="sla-tbl">
-        <thead><tr><th style="width:40px">序號</th><th>保單號</th><th>申請人</th><th>投保日期</th><th>核保天數</th><th>核保人員</th></tr></thead>
-        <tbody>${buildRows(slaInprog, SLA_INPROG)}</tbody>
+      <table class="sla-tbl" style="max-width:400px">
+        <thead><tr><th>核保人員</th><th>超時件數</th></tr></thead>
+        <tbody>${renderPersonStatRows(inprogStats)}</tbody>
       </table>
     </div>`;
 
@@ -1074,6 +1180,26 @@ function exportSLAExcel() {
   const dateStr = new Date().toISOString().slice(0,10).replace(/-/g,'');
   const wb = XLSX.utils.book_new();
 
+  // 按核保人员汇总统计sheet
+  function buildPersonSheet(items, threshold, sheetName) {
+    const personMap = {};
+    items.forEach(item => {
+      const uw = uwNameCol ? String(item.r[uwNameCol]||'').trim() : '';
+      const name = normalizeUWName(uw) || '未分配';
+      if (!personMap[name]) personMap[name] = [];
+      personMap[name].push(item);
+    });
+    const wsData = [['核保人員','超時件數','保單號清單（前20件）']];
+    Object.keys(personMap).sort().forEach(name => {
+      const arr = personMap[name];
+      const pnList = arr.slice(0,20).map(x => policyCol ? String(x.r[policyCol]||'').trim() : '').join('、');
+      wsData.push([name, arr.length, pnList]);
+    });
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    ws['!cols'] = [{wch:16},{wch:10},{wch:60}];
+    XLSX.utils.book_append_sheet(wb, ws, sheetName);
+  }
+  // 详细明细sheet（供参考）
   function buildSheet(items, threshold, sheetName) {
     const wsData = [['序號','保單號','申請人姓名','投保日期','待處理天數','超時天數','作業人員/核保人員']];
     items.forEach((item, i) => {
@@ -1108,9 +1234,12 @@ function exportSLAExcel() {
   wsSummary['!cols'] = [{wch:18},{wch:14},{wch:16}];
   XLSX.utils.book_append_sheet(wb, wsSummary, 'SLA彙總');
 
-  buildSheet(slaEntry,  SLA_ENTRY,  '待錄入超時');
-  buildSheet(slaUW,     SLA_UW,     '待核保超時');
-  buildSheet(slaInprog, SLA_INPROG, '核保中超時');
+  buildPersonSheet(slaEntry,  SLA_ENTRY,  '待錄入-按人統計');
+  buildPersonSheet(slaUW,     SLA_UW,     '待核保-按人統計');
+  buildPersonSheet(slaInprog, SLA_INPROG, '核保中-按人統計');
+  buildSheet(slaEntry,  SLA_ENTRY,  '待錄入明細');
+  buildSheet(slaUW,     SLA_UW,     '待核保明細');
+  buildSheet(slaInprog, SLA_INPROG, '核保中明細');
 
   XLSX.writeFile(wb, `SLA超時報表_${dateStr}.xlsx`);
 }
@@ -1234,16 +1363,16 @@ function renderUWSection(data) {
   if (!data.length) { sec.style.display = 'none'; return; }
 
   const sample = data[0];
-  const statusCol  = findCol(sample, ['Proposal Status','proposal status','status','Status']);
-  const policyCol  = findCol(sample, ['Policy Number','policy number','保单号','保單號','POLICY_NUMBER']);
-  const uwNameCol  = findCol(sample, ['LAST_UW_NAME','last_uw_name','Last UW Name','核保人員','UW_NAME']);
-  const subCol     = findCol(sample, ['Submission Date','submission date','申请日期','申請日期','SUBMISSION_DATE']);
-  const nameCol    = findCol(sample, ['PH_NAME','PH_NAME_CN','ph_name','Applicant Name','申請人姓名','APPLICANT_NAME']);
+  const statusCol  = findCol(sample, ['Policy Status','policy status','Proposal Status','proposal status','status','Status']);
+  const policyCol  = findCol(sample, ['Policy No','Policy Number','policy number','保单号','保單號','POLICY_NUMBER']);
+  const uwNameCol  = findCol(sample, ['Last User ID','last user id','LAST_UW_NAME','last_uw_name','Last UW Name','核保人員','UW_NAME']);
+  const subCol     = findCol(sample, ['Registration Date','registration date','Submission Date','submission date','申请日期','申請日期','SUBMISSION_DATE']);
+  const nameCol    = findCol(sample, ['English Name of Applicant','english name of applicant','PH_NAME','PH_NAME_CN','ph_name','Applicant Name','申請人姓名','APPLICANT_NAME']);
 
   const today = new Date();
 
   // 三类状态
-  const STATUS_DONE    = ['accepted','inforce']; // 已核保
+  const STATUS_DONE    = ['accepted','inforce','declined','terminated','withdraw','withdrawn']; // 已核保（含拒保/終止/撤回）
   const STATUS_INPROG  = ['underwriting in progress']; // 核保中
   const STATUS_WAIT    = ['waiting for underwriting']; // 待核保
 
@@ -1404,11 +1533,11 @@ function showModal(key, label) {
   if (!mainData.length) { alert('請先上傳主數據文件'); return; }
   const records = nodeRecords[key] || [];
   const sample = records.length ? records[0] : (filteredData.length ? filteredData[0] : {});
-  const policyCol = findCol(sample, ['Policy Number','policy number','保单号','保單號','POLICY_NUMBER']);
+  const policyCol = findCol(sample, ['Policy No','Policy Number','policy number','保单号','保單號','POLICY_NUMBER']);
   const nameCol   = findCol(sample, ['PH_NAME','PH_NAME_CN','ph_name','Applicant Name','applicant name','申請人姓名','APPLICANT_NAME','PH_FIRST_NAME']);
-  const subCol    = findCol(sample, ['Submission Date','submission date','申请日期','申請日期','SUBMISSION_DATE']);
-  const statusCol = findCol(sample, ['Proposal Status','proposal status','status','Status','狀態']);
-  const uwCol     = findCol(sample, ['LAST_UW_NAME','last_uw_name','Last UW Name','UW_NAME','uw_name','核保人員','核保人员']);
+  const subCol    = findCol(sample, ['Registration Date','registration date','Submission Date','submission date','申请日期','申請日期','SUBMISSION_DATE']);
+  const statusCol = findCol(sample, ['Policy Status','policy status','Proposal Status','proposal status','status','Status','狀態']);
+  const uwCol     = findCol(sample, ['Last User ID','last user id','LAST_UW_NAME','last_uw_name','Last UW Name','UW_NAME','uw_name','核保人員','核保人员']);
   const today = new Date();
 
   const rows = records.map((r, i) => {
