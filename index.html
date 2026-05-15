@@ -410,6 +410,44 @@ function excelDateToISO(val) {
   return null;
 }
 
+// ─── 数据清洗：上传后统一标准化所有日期列 ──────────────────
+// 所有已知日期字段列名候选（大小写不敏感）
+const DATE_COLS_CANDIDATES = [
+  'Registration Date', 'registration date',
+  'Submission Date', 'submission date',
+  'Policy Despatch Date', 'policy despatch date',
+  'Policy Acknowledgement/Mail Date', 'policy acknowledgement/mail date',
+  'Policy Acknowledgement Mail Date',
+  'PRINT_DATE', 'print_date', 'Print Date',
+  'Pending Date', 'pending date',
+  'Issue Date', 'issue date',
+];
+
+function cleanData(rows) {
+  if (!rows || !rows.length) return rows;
+  const sample = rows[0];
+  // 找出本批数据实际存在的日期列
+  const dateCols = DATE_COLS_CANDIDATES.filter(c =>
+    Object.keys(sample).some(k => k.trim().toLowerCase() === c.toLowerCase())
+  ).map(c =>
+    Object.keys(sample).find(k => k.trim().toLowerCase() === c.toLowerCase())
+  ).filter((v, i, a) => v && a.indexOf(v) === i); // 去重
+
+  if (!dateCols.length) return rows;
+
+  // 原地替换：将原始日期值统一转为 YYYY-MM-DD（或保留原值若无法解析）
+  rows.forEach(r => {
+    dateCols.forEach(col => {
+      if (r[col] != null && r[col] !== '') {
+        const iso = excelDateToISO(r[col]);
+        if (iso) r[col] = iso; // 成功解析则替换为标准格式
+        // 解析失败则保留原值，避免数据丢失
+      }
+    });
+  });
+  return rows;
+}
+
 // ─── 读取文件（CSV/XLSX） ────────────────────────────────────
 function readFile(file, cb) {
   const reader = new FileReader();
@@ -438,8 +476,8 @@ function findCol(row, candidates) {
 document.getElementById('mainFile').addEventListener('change', e => {
   const f = e.target.files[0]; if (!f) return;
   readFile(f, rows => {
-    mainData = rows;
-    filteredData = rows;
+    mainData = cleanData(rows);
+    filteredData = mainData;
     document.getElementById('mainUploadText').textContent = f.name;
     document.getElementById('mainUploadBtn').classList.add('loaded');
     document.getElementById('lastUpdate').textContent = '數據載入：' + new Date().toLocaleString('zh-TW');
