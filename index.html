@@ -174,21 +174,27 @@ body{font-family:'PingFang TC','Microsoft JhengHei',sans-serif;background:#f0f4f
 .sla-overdue-days{font-weight:700;color:#e74c3c}
 .sla-warn-days{font-weight:600;color:#f39c12}
 .sla-export-row{display:flex;justify-content:flex-end;gap:8px;margin-top:12px}
-/* ─── Webhook 设置面板 ─── */
-.webhook-bar{background:#f0f6ff;border:1.5px solid #c7d8f5;border-radius:10px;padding:12px 18px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px}
-.webhook-bar label{font-size:12px;font-weight:600;color:#1a2a4a;white-space:nowrap}
-.webhook-input{flex:1;min-width:200px;font-size:12px;padding:6px 10px;border:1.5px solid #c7d8f5;border-radius:6px;outline:none}
-.webhook-input:focus{border-color:#2d4a7a}
-.webhook-save-btn{font-size:12px;padding:6px 14px;background:#2d4a7a;color:#fff;border:none;border-radius:6px;cursor:pointer;white-space:nowrap}
-.webhook-save-btn:hover{background:#1a2a4a}
-.webhook-status{font-size:11px;color:#27ae60;font-weight:600}
-.webhook-status.err{color:#e74c3c}
-/* ─── 推送按钮 ─── */
-.sla-push-btn{font-size:12px;padding:6px 14px;background:#e67e22;color:#fff;border:none;border-radius:6px;cursor:pointer;display:flex;align-items:center;gap:5px}
-.sla-push-btn:hover{background:#ca6f1e}
-.sla-push-btn:disabled{background:#ccc;cursor:not-allowed}
-.push-toast{display:inline-block;font-size:11px;color:#27ae60;font-weight:600;margin-left:8px}
-.push-toast.err{color:#e74c3c}
+/* ─── 差额分析模块 ─── */
+.diff-section{background:#fff;border-radius:12px;padding:20px 24px;box-shadow:0 2px 8px rgba(0,0,0,.06);margin-bottom:24px}
+.diff-section h2{font-size:15px;font-weight:600;color:#1a2a4a;margin-bottom:4px;display:flex;align-items:center;gap:8px}
+.diff-desc{font-size:12px;color:#888;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid #f0f4f8}
+.diff-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin-bottom:16px}
+.diff-card{border-radius:10px;padding:14px 16px;border:1.5px solid #e0e8f8;background:#fafbff;display:flex;flex-direction:column;gap:6px}
+.diff-card .dc-label{font-size:11px;color:#666;font-weight:500}
+.diff-card .dc-cur{font-size:22px;font-weight:800;color:#1a2a4a;line-height:1.1}
+.diff-card .dc-delta{font-size:13px;font-weight:700;display:flex;align-items:center;gap:4px}
+.diff-card .dc-delta.up{color:#e74c3c}
+.diff-card .dc-delta.down{color:#27ae60}
+.diff-card .dc-delta.zero{color:#aaa}
+.diff-card .dc-prev{font-size:10px;color:#aaa;margin-top:2px}
+.diff-cap-row{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px;padding:14px 16px;background:#f0f9ff;border-radius:8px;border:1.5px solid #bfdbfe}
+.diff-cap-item{display:flex;flex-direction:column;gap:4px;min-width:120px}
+.diff-cap-item .cap-label{font-size:11px;color:#1e40af;font-weight:600}
+.diff-cap-item .cap-val{font-size:20px;font-weight:800;color:#1e40af}
+.diff-cap-item .cap-sub{font-size:10px;color:#60a5fa}
+.diff-save-hint{font-size:11px;color:#aaa;margin-top:8px}
+.diff-snap-btn{font-size:12px;padding:6px 14px;background:#2d4a7a;color:#fff;border:none;border-radius:6px;cursor:pointer;margin-top:8px}
+.diff-snap-btn:hover{background:#1a2a4a}
 </style>
 </head>
 <body>
@@ -285,7 +291,7 @@ body{font-family:'PingFang TC','Microsoft JhengHei',sans-serif;background:#f0f4f
 
   <!-- 日报 -->
   <div class="report-section" id="reportSection" style="display:none">
-    <h2>📋 今日日報（可複製發釘釘）</h2>
+    <h2>📋 今日日報（可複製分享）</h2>
     <div class="report-text" id="reportText"></div>
     <button class="copy-btn" onclick="copyReport()">複製日報</button>
   </div>
@@ -339,19 +345,46 @@ body{font-family:'PingFang TC','Microsoft JhengHei',sans-serif;background:#f0f4f
     <div class="sla-desc">
       超時基準：待錄入 &gt;2個自然日 ／ 待核保 &gt;2個自然日 ／ 核保中 &gt;30天
     </div>
-    <!-- Webhook 配置区 -->
-    <div class="webhook-bar" id="webhookBar">
-      <label>🔔 釘釘推送 Webhook：</label>
-      <input type="text" class="webhook-input" id="webhookInput" placeholder="https://oapi.dingtalk.com/robot/send?access_token=...">
-      <button class="webhook-save-btn" onclick="saveWebhook()">💾 保存</button>
-      <span id="webhookStatus" class="webhook-status" style="display:none"></span>
-      <button class="sla-push-btn" id="slaPushBtn" onclick="pushSLAToDing()" title="手動推送超時提醒到釘釘群">
-        📨 手動推送提醒
-      </button>
-      <span id="pushToast" class="push-toast" style="display:none"></span>
-    </div>
     <div class="sla-summary" id="slaSummary"></div>
     <div class="sla-table-wrap" id="slaTableWrap"></div>
+  </div>
+
+  <!-- 差额分析模块 -->
+  <div class="diff-section" id="diffSection" style="display:none">
+    <h2>📊 數據差額分析（產能評估）</h2>
+    <div class="diff-desc">
+      每次上傳新數據後，自動與上次快照對比，展示各節點變化量。<br>
+      <strong>節點減少</strong> = 該環節已處理件數（即產能）；<strong>節點增加</strong> = 新增積壓。
+    </div>
+    <!-- 产能摘要 -->
+    <div class="diff-cap-row" id="diffCapRow" style="display:none">
+      <div class="diff-cap-item">
+        <span class="cap-label">🔍 核保產能</span>
+        <span class="cap-val" id="capUW">—</span>
+        <span class="cap-sub">待核保節點減少量</span>
+      </div>
+      <div class="diff-cap-item">
+        <span class="cap-label">🖨️ 打印產能</span>
+        <span class="cap-val" id="capPrint">—</span>
+        <span class="cap-sub">承保待打印節點減少量</span>
+      </div>
+      <div class="diff-cap-item">
+        <span class="cap-label">📮 郵寄產能</span>
+        <span class="cap-val" id="capMail">—</span>
+        <span class="cap-sub">打印待郵寄節點減少量</span>
+      </div>
+      <div class="diff-cap-item">
+        <span class="cap-label">📥 新增進單</span>
+        <span class="cap-val" id="capEntry">—</span>
+        <span class="cap-sub">進單量增加量</span>
+      </div>
+    </div>
+    <!-- 各节点详细差额 -->
+    <div class="diff-grid" id="diffGrid"></div>
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <button class="diff-snap-btn" onclick="saveSnapshot()">💾 保存當前快照（作為下次對比基準）</button>
+      <span class="diff-save-hint" id="diffSnapHint"></span>
+    </div>
   </div>
 </div>
 
@@ -714,6 +747,7 @@ function render() {
   renderAssignSection(filteredData);
   renderFailSection(filteredData);
   renderSLASection(filteredData);
+  renderDiffSection(calcNodes(filteredData));
 }
 
 // ─── 图表渲染 ────────────────────────────────────────────────
@@ -1196,11 +1230,6 @@ function renderSLASection(data) {
   window._slaCols = { policyCol, nameCol, subCol, uwNameCol };
   window._slaThresholds = { SLA_ENTRY, SLA_UW, SLA_INPROG };
   sec.style.display = 'block';
-
-  // 上传数据后自动推送（静默模式：有超时才推，无超时不提示）
-  if (localStorage.getItem(WEBHOOK_KEY)) {
-    pushSLAToDing(true);
-  }
 }
 
 function scrollToSLAGroup(id) {
@@ -1282,115 +1311,88 @@ function exportSLAExcel() {
   XLSX.writeFile(wb, `SLA超時報表_${dateStr}.xlsx`);
 }
 
-// ─── Webhook 配置与钉钉推送 ──────────────────────────────────
-const WEBHOOK_KEY = 'sla_dingtalk_webhook';
+// ─── 差额分析模块 ──────────────────────────────────────────────
+const SNAPSHOT_KEY = 'ops_nodes_snapshot';
 
-function saveWebhook() {
-  const url = document.getElementById('webhookInput').value.trim();
-  const st  = document.getElementById('webhookStatus');
-  if (!url) { showWebhookStatus('請輸入Webhook URL', true); return; }
-  if (!url.startsWith('https://oapi.dingtalk.com/robot/send')) {
-    showWebhookStatus('URL格式不正確，請使用釘釘群機器人Webhook', true); return;
+// 节点标签（用于显示）
+const NODE_LABELS = {
+  total:        '進單量',
+  waitEntry:    '待錄入',
+  waitUW:       '待核保',
+  pendingIssued:'問題件待回銷',
+  pendingBack:  '回銷後待處理',
+  waitPay:      '核保通過待繳費',
+  waitPrint:    '承保待打印',
+  waitMail:     '打印待郵寄',
+  waitSign:     '郵寄待簽收',
+  signed:       '已簽收',
+};
+
+function saveSnapshot() {
+  if (!window._currentNodes) { alert('請先上傳主數據'); return; }
+  const snap = {
+    nodes: window._currentNodes,
+    time: new Date().toLocaleString('zh-TW', {hour12:false})
+  };
+  localStorage.setItem(SNAPSHOT_KEY, JSON.stringify(snap));
+  document.getElementById('diffSnapHint').textContent =
+    `✅ 快照已保存（${snap.time}），下次上傳數據後將自動對比`;
+}
+
+function renderDiffSection(currentNodes) {
+  window._currentNodes = currentNodes;
+  const sec = document.getElementById('diffSection');
+  const grid = document.getElementById('diffGrid');
+  const snapRaw = localStorage.getItem(SNAPSHOT_KEY);
+
+  // 更新快照提示
+  const hint = document.getElementById('diffSnapHint');
+  if (snapRaw) {
+    const s = JSON.parse(snapRaw);
+    hint.textContent = `上次快照：${s.time}`;
+  } else {
+    hint.textContent = '尚無快照記錄，點擊上方按鈕保存當前數據作為基準';
   }
-  localStorage.setItem(WEBHOOK_KEY, url);
-  showWebhookStatus('✅ 已保存', false);
-}
 
-function showWebhookStatus(msg, isErr) {
-  const st = document.getElementById('webhookStatus');
-  st.textContent = msg;
-  st.className = 'webhook-status' + (isErr ? ' err' : '');
-  st.style.display = 'inline';
-  setTimeout(() => { st.style.display = 'none'; }, 3000);
-}
+  sec.style.display = 'block';
 
-function loadWebhookInput() {
-  const saved = localStorage.getItem(WEBHOOK_KEY);
-  if (saved) document.getElementById('webhookInput').value = saved;
-}
-
-// 构建钉钉Markdown消息内容
-function buildSLAMarkdown() {
-  const slaData = window._slaData;
-  if (!slaData) return null;
-  const { slaEntry, slaUW, slaInprog } = slaData;
-  const { policyCol, nameCol, uwNameCol } = window._slaCols || {};
-  const { SLA_ENTRY, SLA_UW, SLA_INPROG } = window._slaThresholds || {};
-
-  const total = slaEntry.length + slaUW.length + slaInprog.length;
-  if (total === 0) return null; // 无超时，不推送
-
-  // 按核保人员分组收集超时信息
-  const personMap = new Map();
-  function addToPerson(items, typeLabel, threshold) {
-    items.forEach(item => {
-      const r = item.r;
-      const pn  = policyCol  ? String(r[policyCol] ||'').trim() : '未知';
-      const nm  = nameCol    ? String(r[nameCol]   ||'').trim() : '';
-      const uw  = uwNameCol  ? String(r[uwNameCol] ||'').trim() : '待分配';
-      const person = uw || '待分配';
-      if (!personMap.has(person)) personMap.set(person, []);
-      personMap.get(person).push(`- ${pn}${nm?'（'+nm+'）':''} [${typeLabel}超${item.days - threshold}天]`);
-    });
-  }
-  addToPerson(slaEntry,  '待錄入', SLA_ENTRY);
-  addToPerson(slaUW,     '待核保', SLA_UW);
-  addToPerson(slaInprog, '核保中', SLA_INPROG);
-
-  const now = new Date().toLocaleString('zh-TW', {hour12:false});
-  let md = `### ⏱️ SLA超時提醒\n**時間：** ${now}\n**超時合計：** ${total}件\n\n`;
-  md += `> 待錄入>${SLA_ENTRY}日：**${slaEntry.length}件** ｜ 待核保>${SLA_UW}日：**${slaUW.length}件** ｜ 核保中>${SLA_INPROG}天：**${slaInprog.length}件**\n\n---\n`;
-  personMap.forEach((lines, person) => {
-    md += `**👤 ${person}（${lines.length}件）**\n${lines.slice(0,10).join('\n')}`;
-    if (lines.length > 10) md += `\n- ...還有${lines.length-10}件`;
-    md += '\n\n';
-  });
-  md += '請相關核保人員及時跟進以上超時保單。';
-  return md;
-}
-
-async function pushSLAToDing(isAuto) {
-  const webhook = localStorage.getItem(WEBHOOK_KEY);
-  if (!webhook) {
-    if (!isAuto) alert('請先填寫並保存釘釘Webhook URL');
+  if (!snapRaw) {
+    grid.innerHTML = '<div style="color:#aaa;font-size:13px;padding:12px 0">尚無對比基準。點擊「保存當前快照」後，下次上傳新數據時將自動顯示差額。</div>';
+    document.getElementById('diffCapRow').style.display = 'none';
     return;
   }
-  const md = buildSLAMarkdown();
-  if (!md) {
-    if (!isAuto) { showPushToast('✅ 目前無超時保單，無需推送', false); } return;
-  }
 
-  const btn = document.getElementById('slaPushBtn');
-  if (btn) { btn.disabled = true; btn.textContent = '推送中...'; }
+  const prev = JSON.parse(snapRaw).nodes;
 
-  try {
-    const resp = await fetch(webhook, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ msgtype: 'markdown', markdown: { title: 'SLA超時提醒', text: md } })
-    });
-    const json = await resp.json();
-    if (json.errcode === 0) {
-      showPushToast('✅ 釘釘推送成功', false);
-    } else {
-      showPushToast(`❌ 推送失敗：${json.errmsg || json.errcode}`, true);
-    }
-  } catch(e) {
-    // CORS限制时提供复制方案
-    showPushToast('❌ 瀏覽器跨域限制，請改用釘釘桌面端打開看板後推送', true);
-    console.warn('Webhook CORS:', e);
-  } finally {
-    if (btn) { btn.disabled = false; btn.textContent = '📨 手動推送提醒'; }
-  }
-}
+  // 计算各节点差额
+  const keys = Object.keys(NODE_LABELS);
+  grid.innerHTML = keys.map(key => {
+    const cur  = currentNodes[key] ?? 0;
+    const pre  = prev[key] ?? 0;
+    const diff = cur - pre;
+    let deltaCls = 'zero', deltaText = '持平', deltaIcon = '→';
+    if (diff > 0)  { deltaCls = 'up';   deltaIcon = '▲'; deltaText = `+${diff}`; }
+    if (diff < 0)  { deltaCls = 'down'; deltaIcon = '▼'; deltaText = `${diff}`; }
+    return `<div class="diff-card">
+      <div class="dc-label">${NODE_LABELS[key]}</div>
+      <div class="dc-cur">${cur}</div>
+      <div class="dc-delta ${deltaCls}">${deltaIcon} ${deltaText}</div>
+      <div class="dc-prev">上次：${pre}</div>
+    </div>`;
+  }).join('');
 
-function showPushToast(msg, isErr) {
-  const t = document.getElementById('pushToast');
-  if (!t) return;
-  t.textContent = msg;
-  t.className = 'push-toast' + (isErr ? ' err' : '');
-  t.style.display = 'inline';
-  setTimeout(() => { t.style.display = 'none'; }, 5000);
+  // 产能摘要：节点减少 = 已处理（正数产能）
+  const capUW    = Math.max(0, (prev.waitUW    ?? 0) - (currentNodes.waitUW    ?? 0));
+  const capPrint = Math.max(0, (prev.waitPrint ?? 0) - (currentNodes.waitPrint ?? 0));
+  const capMail  = Math.max(0, (prev.waitMail  ?? 0) - (currentNodes.waitMail  ?? 0));
+  const capEntry = Math.max(0, (currentNodes.total ?? 0) - (prev.total ?? 0));
+
+  document.getElementById('capUW').textContent    = capUW    > 0 ? `+${capUW} 件`    : '—';
+  document.getElementById('capPrint').textContent = capPrint > 0 ? `+${capPrint} 件` : '—';
+  document.getElementById('capMail').textContent  = capMail  > 0 ? `+${capMail} 件`  : '—';
+  document.getElementById('capEntry').textContent = capEntry > 0 ? `+${capEntry} 件` : '—';
+  document.getElementById('diffCapRow').style.display =
+    (capUW + capPrint + capMail + capEntry > 0) ? 'flex' : 'none';
 }
 
 // ─── 核保人员工作量区块渲染（简化版：三项数字+导出）──────────
@@ -1633,7 +1635,6 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('modalOverlay').addEventListener('click', e => {
     if (e.target === document.getElementById('modalOverlay')) closeModal();
   });
-  loadWebhookInput(); // 恢复已保存的Webhook URL
 });
 
 // ─── 导出节点清单为 Excel ────────────────────────────────────
