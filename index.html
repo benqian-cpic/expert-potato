@@ -195,6 +195,21 @@ body{font-family:'PingFang TC','Microsoft JhengHei',sans-serif;background:#f0f4f
 .diff-save-hint{font-size:11px;color:#aaa;margin-top:8px}
 .diff-snap-btn{font-size:12px;padding:6px 14px;background:#2d4a7a;color:#fff;border:none;border-radius:6px;cursor:pointer;margin-top:8px}
 .diff-snap-btn:hover{background:#1a2a4a}
+/* 问题件核对模块 */
+.pend-check-section{background:#fff;border-radius:12px;padding:24px 28px;margin:20px 0;box-shadow:0 2px 12px rgba(0,0,0,.08);border-left:4px solid #e74c3c}
+.pend-check-section h2{margin:0 0 8px;font-size:16px;color:#1a2a4a}
+.pend-check-desc{font-size:13px;color:#555;margin:0 0 16px;line-height:1.6}
+.pend-check-summary{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px}
+.pend-check-stat{background:#fff5f5;border:1px solid #fca5a5;border-radius:8px;padding:12px 20px;min-width:120px;text-align:center}
+.pend-check-stat.ok{background:#f0fdf4;border-color:#86efac}
+.pend-check-stat .stat-num{font-size:28px;font-weight:700;color:#e74c3c;display:block}
+.pend-check-stat.ok .stat-num{color:#16a34a}
+.pend-check-stat .stat-label{font-size:11px;color:#666}
+.pend-check-grid table{width:100%;border-collapse:collapse;font-size:13px}
+.pend-check-grid th{background:#2d4a7a;color:#fff;padding:8px 12px;text-align:left;font-weight:500}
+.pend-check-grid td{padding:7px 12px;border-bottom:1px solid #f0f4f8}
+.pend-check-grid tr:hover td{background:#fef9f9}
+.pend-check-grid .tag-missing{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;background:#fee2e2;color:#e74c3c;font-weight:600}
 </style>
 </head>
 <body>
@@ -247,6 +262,13 @@ body{font-family:'PingFang TC','Microsoft JhengHei',sans-serif;background:#f0f4f
         <label class="upload-btn" id="uwPendingUploadBtn">
           <span>🔄</span><span id="uwPendingUploadText">選擇Pending清單文件</span>
           <input type="file" id="uwPendingFile" accept=".csv,.xlsx,.xls">
+        </label>
+      </div>
+      <div class="upload-item">
+        <label>Daily Pending Report（核對問題件是否下發）</label>
+        <label class="upload-btn" id="pendingRptUploadBtn">
+          <span>📋</span><span id="pendingRptUploadText">選擇 Daily Pending Report</span>
+          <input type="file" id="pendingRptFile" accept=".csv,.xlsx,.xls">
         </label>
       </div>
     </div>
@@ -350,6 +372,17 @@ body{font-family:'PingFang TC','Microsoft JhengHei',sans-serif;background:#f0f4f
   </div>
 
   <!-- 差额分析模块 -->
+  <!-- 问题件核对模块 -->
+  <div class="pend-check-section" id="pendCheckSection" style="display:none">
+    <h2>🔎 問題件下發核對</h2>
+    <p class="pend-check-desc">比對主數據中「Underwriting in progress」的保單與 Daily Pending Report，<br>若保單不在 Pending Report 中，則視為<strong style="color:#e74c3c">問題件未正常下發</strong>，需跟進確認。</p>
+    <div id="pendCheckSummary" class="pend-check-summary"></div>
+    <div id="pendCheckGrid" class="pend-check-grid"></div>
+    <div style="margin-top:12px">
+      <button class="btn btn-primary" onclick="exportPendCheckExcel()">📥 導出未下發清單</button>
+    </div>
+  </div>
+
   <div class="diff-section" id="diffSection" style="display:none">
     <h2>📊 數據差額分析（產能評估）</h2>
     <div class="diff-desc">
@@ -402,6 +435,9 @@ let nodeRecords = {}; // 每个节点对应的记录数组
 
 // 核保Pending清单：Map<保单号大写, {date: ISO日期字符串}>
 let uwPendingMap = new Map();
+
+// Daily Pending Report 保单号集合（用于核对问题件是否已下发）
+let pendingRptSet = new Set();
 
 // LAST_UW_NAME 标准化映射
 const UW_NAME_MAP = {
@@ -583,6 +619,25 @@ document.getElementById('uwPendingFile').addEventListener('change', e => {
   });
 });
 
+document.getElementById('pendingRptFile').addEventListener('change', e => {
+  const f = e.target.files[0]; if (!f) return;
+  readFile(f, rows => {
+    pendingRptSet.clear();
+    rows.forEach(r => {
+      // Daily Pending Report 的保单号列名为 "Policy No"
+      const col = findCol(r, ['Policy No','policy no','Policy Number','policy number','保单号','保單號','POLICY_NUMBER']) ||
+                  Object.keys(r)[0];
+      if (col && r[col]) {
+        const pn = String(r[col]).trim().toUpperCase();
+        if (pn) pendingRptSet.add(pn);
+      }
+    });
+    document.getElementById('pendingRptUploadText').textContent = f.name + ' (' + pendingRptSet.size + '件)';
+    document.getElementById('pendingRptUploadBtn').classList.add('loaded');
+    render();
+  });
+});
+
 // ─── 日期筛选 ────────────────────────────────────────────────
 function applyFilter() {
   if (!mainData.length) return;
@@ -748,6 +803,7 @@ function render() {
   renderFailSection(filteredData);
   renderSLASection(filteredData);
   renderDiffSection(calcNodes(filteredData));
+  renderPendCheckSection(filteredData);
 }
 
 // ─── 图表渲染 ────────────────────────────────────────────────
@@ -766,12 +822,22 @@ function renderCharts(nodes, data) {
   });
 
   // 折线图（月度进单量）
+  // 直接读 cleanData() 已标准化的 YYYY-MM-DD 值，不再二次调用 excelDateToISO
   const sample = data[0];
   const subCol = findCol(sample, ['Registration Date','registration date','Submission Date','submission date','申请日期','申請日期']);
+  const nowMonth = new Date().toISOString().slice(0,7); // 当前年月，用于过滤未来异常数据
   const monthMap = {};
   data.forEach(r => {
-    const d = subCol ? excelDateToISO(r[subCol]) : null;
-    if (d) { const m = d.slice(0,7); monthMap[m] = (monthMap[m]||0) + 1; }
+    const raw = subCol ? r[subCol] : null;
+    if (!raw) return;
+    // 已清洗值为 YYYY-MM-DD；若仍为原始格式则用 excelDateToISO 兜底解析
+    const d = (typeof raw === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(raw))
+      ? raw
+      : excelDateToISO(raw);
+    if (!d) return;
+    const m = d.slice(0,7);
+    if (m > nowMonth) return; // 过滤超出当前月的异常日期（录入错误或系统默认值）
+    monthMap[m] = (monthMap[m]||0) + 1;
   });
   const months = Object.keys(monthMap).sort();
   if (lineChartInst) lineChartInst.destroy();
@@ -1337,6 +1403,118 @@ function saveSnapshot() {
   localStorage.setItem(SNAPSHOT_KEY, JSON.stringify(snap));
   document.getElementById('diffSnapHint').textContent =
     `✅ 快照已保存（${snap.time}），下次上傳數據後將自動對比`;
+}
+
+// ─── 問題件下發核對模块 ──────────────────────────────────────
+function renderPendCheckSection(data) {
+  const sec = document.getElementById('pendCheckSection');
+  // 只有在 pendingRptSet 有数据时才显示此模块
+  if (!pendingRptSet.size) { sec.style.display = 'none'; return; }
+
+  const policyCol = findCol(data[0], ['Policy No','policy no','Policy Number','policy number','保單號','保单号','POLICY_NO']);
+  const statusCol = findCol(data[0], ['Policy Status','policy status','Proposal Status','proposal status','Status','status','狀態']);
+  const nameCol   = findCol(data[0], ['English Name of Applicant','english name of applicant','Applicant Name','applicant name','申請人','applicant']);
+  const uwCol     = findCol(data[0], ['Last User ID','last user id','LAST_UW_NAME','last_uw_name']);
+  const dateCol   = findCol(data[0], ['Registration Date','registration date','Submission Date','submission date']);
+
+  // 筛出 underwriting in progress 的保单
+  const uwRows = data.filter(r => {
+    const st = statusCol ? String(r[statusCol] || '').trim().toLowerCase() : '';
+    return st === 'underwriting in progress';
+  });
+
+  // 分成两组：在 Pending Report 中 / 不在
+  const missing = []; // 问题件未正常下发
+  const found   = []; // 已在 Pending Report 中
+  uwRows.forEach(r => {
+    const pn = policyCol ? String(r[policyCol] || '').trim().toUpperCase() : '';
+    if (!pn) return;
+    if (pendingRptSet.has(pn)) {
+      found.push(r);
+    } else {
+      missing.push(r);
+    }
+  });
+
+  sec.style.display = 'block';
+
+  // 摘要统计
+  const summary = document.getElementById('pendCheckSummary');
+  summary.innerHTML = `
+    <div class="pend-check-stat ${missing.length === 0 ? 'ok' : ''}">
+      <span class="stat-num">${missing.length}</span>
+      <span class="stat-label">問題件未下發</span>
+    </div>
+    <div class="pend-check-stat ok">
+      <span class="stat-num">${found.length}</span>
+      <span class="stat-label">已在Pending Report</span>
+    </div>
+    <div class="pend-check-stat" style="background:#f0f4ff;border-color:#93c5fd">
+      <span class="stat-num" style="color:#2d4a7a">${uwRows.length}</span>
+      <span class="stat-label">核保中總計</span>
+    </div>`;
+
+  // 明细表格（仅显示未下发的问题件）
+  const grid = document.getElementById('pendCheckGrid');
+  if (missing.length === 0) {
+    grid.innerHTML = '<p style="color:#16a34a;font-size:13px;margin:8px 0">✅ 所有核保中保單均已在 Daily Pending Report 中，無需跟進。</p>';
+    return;
+  }
+
+  const rows = missing.map((r, i) => {
+    const pn   = policyCol ? r[policyCol] : '';
+    const name = nameCol   ? r[nameCol]   : '';
+    const uw   = uwCol     ? normalizeUWName(r[uwCol]) : '—';
+    const dt   = dateCol   ? r[dateCol]   : '';
+    return `<tr>
+      <td>${i+1}</td>
+      <td>${pn}</td>
+      <td>${name}</td>
+      <td>${dt}</td>
+      <td>${uw}</td>
+      <td><span class="tag-missing">未下發</span></td>
+    </tr>`;
+  }).join('');
+
+  grid.innerHTML = `<table>
+    <thead><tr><th>#</th><th>保單號</th><th>申請人</th><th>申請日期</th><th>核保人員</th><th>狀態</th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table>`;
+}
+
+function exportPendCheckExcel() {
+  if (!pendingRptSet.size || !mainData.length) { alert('請先上傳主數據及 Daily Pending Report'); return; }
+  const data = filteredData.length ? filteredData : mainData;
+  const policyCol = findCol(data[0], ['Policy No','policy no','Policy Number','policy number','保單號','保单号','POLICY_NO']);
+  const statusCol = findCol(data[0], ['Policy Status','policy status','Proposal Status','proposal status','Status','status','狀態']);
+  const nameCol   = findCol(data[0], ['English Name of Applicant','english name of applicant','Applicant Name','applicant name','申請人','applicant']);
+  const uwCol     = findCol(data[0], ['Last User ID','last user id','LAST_UW_NAME','last_uw_name']);
+  const dateCol   = findCol(data[0], ['Registration Date','registration date','Submission Date','submission date']);
+
+  const missing = data.filter(r => {
+    const st = statusCol ? String(r[statusCol] || '').trim().toLowerCase() : '';
+    if (st !== 'underwriting in progress') return false;
+    const pn = policyCol ? String(r[policyCol] || '').trim().toUpperCase() : '';
+    return pn && !pendingRptSet.has(pn);
+  });
+
+  if (!missing.length) { alert('無未下發問題件，無需導出'); return; }
+
+  const header = ['#','保單號','申請人','申請日期','核保人員','備註'];
+  const rows = missing.map((r, i) => [
+    i+1,
+    policyCol ? r[policyCol] : '',
+    nameCol   ? r[nameCol]   : '',
+    dateCol   ? r[dateCol]   : '',
+    uwCol     ? normalizeUWName(r[uwCol]) : '',
+    '問題件未正常下發，請跟進'
+  ]);
+
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet([header, ...rows]);
+  ws['!cols'] = [4,14,20,14,14,24].map(w => ({wch:w}));
+  XLSX.utils.book_append_sheet(wb, ws, '未下發問題件');
+  XLSX.writeFile(wb, `問題件未下發清單_${new Date().toLocaleDateString('zh-TW').replace(/\//g,'-')}.xlsx`);
 }
 
 function renderDiffSection(currentNodes) {
