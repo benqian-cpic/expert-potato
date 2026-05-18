@@ -210,6 +210,7 @@ body{font-family:'PingFang TC','Microsoft JhengHei',sans-serif;background:#f0f4f
 .pend-check-grid td{padding:7px 12px;border-bottom:1px solid #f0f4f8}
 .pend-check-grid tr:hover td{background:#fef9f9}
 .pend-check-grid .tag-missing{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;background:#fee2e2;color:#e74c3c;font-weight:600}
+.pend-check-grid .tag-empty-content{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;background:#fef9c3;color:#b45309;font-weight:600}
 </style>
 </head>
 <body>
@@ -436,8 +437,9 @@ let nodeRecords = {}; // 每个节点对应的记录数组
 // 核保Pending清单：Map<保单号大写, {date: ISO日期字符串}>
 let uwPendingMap = new Map();
 
-// Daily Pending Report 保单号集合（用于核对问题件是否已下发）
-let pendingRptSet = new Set();
+// Daily Pending Report 保单号→详情 Map（用于核对问题件是否已下发，及 Pending Requirements Content 是否为空）
+// Map<保单号(大写), { pendingContent: string }>
+let pendingRptMap = new Map();
 
 // LAST_UW_NAME 标准化映射
 const UW_NAME_MAP = {
@@ -622,17 +624,19 @@ document.getElementById('uwPendingFile').addEventListener('change', e => {
 document.getElementById('pendingRptFile').addEventListener('change', e => {
   const f = e.target.files[0]; if (!f) return;
   readFile(f, rows => {
-    pendingRptSet.clear();
+    pendingRptMap.clear();
     rows.forEach(r => {
       // Daily Pending Report 的保单号列名为 "Policy No"
       const col = findCol(r, ['Policy No','policy no','Policy Number','policy number','保单号','保單號','POLICY_NUMBER']) ||
                   Object.keys(r)[0];
+      const contentCol = findCol(r, ['Pending Requirements Content','pending requirements content','Pending Content','pending content']);
       if (col && r[col]) {
         const pn = String(r[col]).trim().toUpperCase();
-        if (pn) pendingRptSet.add(pn);
+        const pendingContent = contentCol ? String(r[contentCol] || '').trim() : '';
+        if (pn) pendingRptMap.set(pn, { pendingContent });
       }
     });
-    document.getElementById('pendingRptUploadText').textContent = f.name + ' (' + pendingRptSet.size + '件)';
+    document.getElementById('pendingRptUploadText').textContent = f.name + ' (' + pendingRptMap.size + '件)';
     document.getElementById('pendingRptUploadBtn').classList.add('loaded');
     render();
   });
@@ -1408,8 +1412,7 @@ function saveSnapshot() {
 // ─── 問題件下發核對模块 ──────────────────────────────────────
 function renderPendCheckSection(data) {
   const sec = document.getElementById('pendCheckSection');
-  // 只有在 pendingRptSet 有数据时才显示此模块
-  if (!pendingRptSet.size) { sec.style.display = 'none'; return; }
+  if (!pendingRptMap.size) { sec.style.display = 'none'; return; }
 
   const policyCol = findCol(data[0], ['Policy No','policy no','Policy Number','policy number','保單號','保单号','POLICY_NO']);
   const statusCol = findCol(data[0], ['Policy Status','policy status','Proposal Status','proposal status','Status','status','狀態']);
@@ -1423,16 +1426,22 @@ function renderPendCheckSection(data) {
     return st === 'underwriting in progress';
   });
 
-  // 分成两组：在 Pending Report 中 / 不在
-  const missing = []; // 问题件未正常下发
-  const found   = []; // 已在 Pending Report 中
+  // 分成三组：未下发 / 已下发但 Pending Content 为空 / 正常
+  const missing      = []; // 问题件未正常下发（不在 Pending Report 中）
+  const emptyContent = []; // 在 Pending Report 中但 Pending Requirements Content 为空
+  const normal       = []; // 正常
   uwRows.forEach(r => {
     const pn = policyCol ? String(r[policyCol] || '').trim().toUpperCase() : '';
     if (!pn) return;
-    if (pendingRptSet.has(pn)) {
-      found.push(r);
-    } else {
+    if (!pendingRptMap.has(pn)) {
       missing.push(r);
+    } else {
+      const info = pendingRptMap.get(pn);
+      if (!info.pendingContent) {
+        emptyContent.push(r);
+      } else {
+        normal.push(r);
+      }
     }
   });
 
@@ -1445,34 +1454,46 @@ function renderPendCheckSection(data) {
       <span class="stat-num">${missing.length}</span>
       <span class="stat-label">問題件未下發</span>
     </div>
+    <div class="pend-check-stat ${emptyContent.length === 0 ? 'ok' : ''}" style="${emptyContent.length > 0 ? 'border-color:#f59e0b;background:#fffbeb' : ''}">
+      <span class="stat-num" style="${emptyContent.length > 0 ? 'color:#d97706' : ''}">${emptyContent.length}</span>
+      <span class="stat-label">Pending內容為空</span>
+    </div>
     <div class="pend-check-stat ok">
-      <span class="stat-num">${found.length}</span>
-      <span class="stat-label">已在Pending Report</span>
+      <span class="stat-num">${normal.length}</span>
+      <span class="stat-label">已正常下發</span>
     </div>
     <div class="pend-check-stat" style="background:#f0f4ff;border-color:#93c5fd">
       <span class="stat-num" style="color:#2d4a7a">${uwRows.length}</span>
       <span class="stat-label">核保中總計</span>
     </div>`;
 
-  // 明细表格（仅显示未下发的问题件）
+  // 明细表格
   const grid = document.getElementById('pendCheckGrid');
-  if (missing.length === 0) {
-    grid.innerHTML = '<p style="color:#16a34a;font-size:13px;margin:8px 0">✅ 所有核保中保單均已在 Daily Pending Report 中，無需跟進。</p>';
+  const allIssues = [
+    ...missing.map(r => ({ r, type: 'missing' })),
+    ...emptyContent.map(r => ({ r, type: 'empty' }))
+  ];
+
+  if (allIssues.length === 0) {
+    grid.innerHTML = '<p style="color:#16a34a;font-size:13px;margin:8px 0">✅ 所有核保中保單均已正常下發且 Pending 內容完整，無需跟進。</p>';
     return;
   }
 
-  const rows = missing.map((r, i) => {
+  const rows = allIssues.map(({ r, type }, i) => {
     const pn   = policyCol ? r[policyCol] : '';
     const name = nameCol   ? r[nameCol]   : '';
     const uw   = uwCol     ? normalizeUWName(r[uwCol]) : '—';
     const dt   = dateCol   ? r[dateCol]   : '';
+    const tag  = type === 'missing'
+      ? '<span class="tag-missing">未下發</span>'
+      : '<span class="tag-empty-content">Pending內容為空</span>';
     return `<tr>
       <td>${i+1}</td>
       <td>${pn}</td>
       <td>${name}</td>
       <td>${dt}</td>
       <td>${uw}</td>
-      <td><span class="tag-missing">未下發</span></td>
+      <td>${tag}</td>
     </tr>`;
   }).join('');
 
@@ -1483,7 +1504,7 @@ function renderPendCheckSection(data) {
 }
 
 function exportPendCheckExcel() {
-  if (!pendingRptSet.size || !mainData.length) { alert('請先上傳主數據及 Daily Pending Report'); return; }
+  if (!pendingRptMap.size || !mainData.length) { alert('請先上傳主數據及 Daily Pending Report'); return; }
   const data = filteredData.length ? filteredData : mainData;
   const policyCol = findCol(data[0], ['Policy No','policy no','Policy Number','policy number','保單號','保单号','POLICY_NO']);
   const statusCol = findCol(data[0], ['Policy Status','policy status','Proposal Status','proposal status','Status','status','狀態']);
@@ -1491,30 +1512,47 @@ function exportPendCheckExcel() {
   const uwCol     = findCol(data[0], ['Last User ID','last user id','LAST_UW_NAME','last_uw_name']);
   const dateCol   = findCol(data[0], ['Registration Date','registration date','Submission Date','submission date']);
 
-  const missing = data.filter(r => {
+  const uwRows = data.filter(r => {
     const st = statusCol ? String(r[statusCol] || '').trim().toLowerCase() : '';
-    if (st !== 'underwriting in progress') return false;
-    const pn = policyCol ? String(r[policyCol] || '').trim().toUpperCase() : '';
-    return pn && !pendingRptSet.has(pn);
+    return st === 'underwriting in progress';
   });
 
-  if (!missing.length) { alert('無未下發問題件，無需導出'); return; }
+  const missingRows      = [];
+  const emptyContentRows = [];
+  uwRows.forEach(r => {
+    const pn = policyCol ? String(r[policyCol] || '').trim().toUpperCase() : '';
+    if (!pn) return;
+    if (!pendingRptMap.has(pn)) {
+      missingRows.push(r);
+    } else {
+      const info = pendingRptMap.get(pn);
+      if (!info.pendingContent) emptyContentRows.push(r);
+    }
+  });
 
-  const header = ['#','保單號','申請人','申請日期','核保人員','備註'];
-  const rows = missing.map((r, i) => [
+  if (!missingRows.length && !emptyContentRows.length) { alert('無問題件，無需導出'); return; }
+
+  const header = ['#','保單號','申請人','申請日期','核保人員','問題類型','備註'];
+  const toRow = (r, i, type, remark) => [
     i+1,
     policyCol ? r[policyCol] : '',
     nameCol   ? r[nameCol]   : '',
     dateCol   ? r[dateCol]   : '',
     uwCol     ? normalizeUWName(r[uwCol]) : '',
-    '問題件未正常下發，請跟進'
-  ]);
+    type,
+    remark
+  ];
+
+  const allRows = [
+    ...missingRows.map((r, i) => toRow(r, i, '問題件未下發', '保單不在 Daily Pending Report 中，請跟進下發')),
+    ...emptyContentRows.map((r, i) => toRow(r, missingRows.length + i, 'Pending內容為空', 'Pending Requirements Content 為空，請補充 Pending 內容'))
+  ];
 
   const wb = XLSX.utils.book_new();
-  const ws = XLSX.utils.aoa_to_sheet([header, ...rows]);
-  ws['!cols'] = [4,14,20,14,14,24].map(w => ({wch:w}));
-  XLSX.utils.book_append_sheet(wb, ws, '未下發問題件');
-  XLSX.writeFile(wb, `問題件未下發清單_${new Date().toLocaleDateString('zh-TW').replace(/\//g,'-')}.xlsx`);
+  const ws = XLSX.utils.aoa_to_sheet([header, ...allRows]);
+  ws['!cols'] = [4,14,20,14,14,16,36].map(w => ({wch:w}));
+  XLSX.utils.book_append_sheet(wb, ws, '問題件核對清單');
+  XLSX.writeFile(wb, `問題件核對清單_${new Date().toLocaleDateString('zh-TW').replace(/\//g,'-')}.xlsx`);
 }
 
 function renderDiffSection(currentNodes) {
