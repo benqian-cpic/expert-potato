@@ -211,6 +211,39 @@ body{font-family:'PingFang TC','Microsoft JhengHei',sans-serif;background:#f0f4f
 .pend-check-grid tr:hover td{background:#fef9f9}
 .pend-check-grid .tag-missing{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;background:#fee2e2;color:#e74c3c;font-weight:600}
 .pend-check-grid .tag-empty-content{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;background:#fef9c3;color:#b45309;font-weight:600}
+/* ─── 任务管理模块 ─── */
+.task-section{background:#fff;border-radius:12px;padding:20px 24px;box-shadow:0 2px 8px rgba(0,0,0,.06);margin-bottom:24px}
+.task-section h2{font-size:15px;font-weight:600;color:#1a2a4a;margin-bottom:16px;display:flex;align-items:center;gap:8px}
+.task-add-form{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;padding:16px;background:#f8fafc;border-radius:10px;margin-bottom:18px;border:1px solid #e8eef8}
+.task-field{display:flex;flex-direction:column;gap:5px}
+.task-field label{font-size:12px;color:#555;font-weight:500}
+.task-field input,.task-field select{padding:7px 11px;border:1px solid #dde3ed;border-radius:7px;font-size:13px;color:#1a2a4a;background:#fff;min-width:140px}
+.task-field input:focus,.task-field select:focus{outline:none;border-color:#2d4a7a;box-shadow:0 0 0 2px rgba(45,74,122,.1)}
+.task-table-wrap{overflow-x:auto}
+.task-table{width:100%;border-collapse:collapse;font-size:13px}
+.task-table th{background:#1a2a4a;color:#fff;padding:10px 14px;text-align:left;font-weight:500;white-space:nowrap}
+.task-table td{padding:9px 14px;border-bottom:1px solid #f0f4f8;vertical-align:middle}
+.task-table tr:hover td{background:#f8faff}
+.task-tag{display:inline-block;padding:2px 9px;border-radius:10px;font-size:11px;font-weight:600}
+.task-tag-todo{background:#e8eef8;color:#2d4a7a}
+.task-tag-doing{background:#fff3cd;color:#856404}
+.task-tag-done{background:#d1fae5;color:#065f46}
+.task-tag-overdue{background:#fee2e2;color:#b91c1c}
+.task-overdue-row td{background:#fff8f8!important}
+.task-today-row td{background:#fffbf0!important}
+.task-action-btn{padding:3px 10px;border:none;border-radius:5px;cursor:pointer;font-size:12px;font-weight:500}
+.task-edit-btn{background:#e8eef8;color:#2d4a7a}.task-edit-btn:hover{background:#d0ddf5}
+.task-del-btn{background:#fee2e2;color:#b91c1c;margin-left:4px}.task-del-btn:hover{background:#fecaca}
+.task-done-btn{background:#d1fae5;color:#065f46;margin-left:4px}.task-done-btn:hover{background:#a7f3d0}
+.task-filter-bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
+.task-filter-bar select{padding:6px 10px;border:1px solid #dde3ed;border-radius:6px;font-size:13px;color:#333}
+.task-count-row{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:14px}
+.task-count-item{background:#f8fafc;border-radius:8px;padding:8px 16px;text-align:center;min-width:90px;border:1px solid #e8eef8}
+.task-count-item .tc-num{font-size:22px;font-weight:800;color:#1a2a4a;display:block}
+.task-count-item .tc-label{font-size:11px;color:#666}
+.task-count-item.tc-overdue .tc-num{color:#b91c1c}
+.task-count-item.tc-today .tc-num{color:#d97706}
+.task-empty{text-align:center;color:#aaa;font-size:13px;padding:40px 0}
 </style>
 </head>
 <body>
@@ -422,6 +455,79 @@ body{font-family:'PingFang TC','Microsoft JhengHei',sans-serif;background:#f0f4f
   </div>
 </div>
 
+<!-- 任务管理模块 -->
+<div class="task-section" id="taskSection">
+  <h2>📋 部門任務管理
+    <button class="btn btn-primary" style="margin-left:auto;font-size:12px;padding:6px 14px" onclick="exportTaskExcel()">📥 導出任務清單</button>
+  </h2>
+
+  <!-- 新增/编辑表单 -->
+  <div class="task-add-form" id="taskForm">
+    <div class="task-field">
+      <label>任務名稱 *</label>
+      <input type="text" id="taskName" placeholder="輸入任務內容" style="min-width:220px">
+    </div>
+    <div class="task-field">
+      <label>責任人 *</label>
+      <input type="text" id="taskOwner" placeholder="姓名">
+    </div>
+    <div class="task-field">
+      <label>截止日期 *</label>
+      <input type="date" id="taskDue">
+    </div>
+    <div class="task-field">
+      <label>狀態</label>
+      <select id="taskStatus">
+        <option value="todo">待處理</option>
+        <option value="doing">進行中</option>
+        <option value="done">已完成</option>
+      </select>
+    </div>
+    <div class="task-field" style="justify-content:flex-end">
+      <button class="btn btn-primary" onclick="submitTask()" id="taskSubmitBtn">➕ 新增任務</button>
+      <button class="btn btn-secondary" onclick="cancelEdit()" id="taskCancelBtn" style="display:none;margin-top:6px">取消</button>
+    </div>
+  </div>
+
+  <!-- 统计行 -->
+  <div class="task-count-row" id="taskCountRow"></div>
+
+  <!-- 筛选栏 -->
+  <div class="task-filter-bar">
+    <label style="font-size:13px;color:#555;font-weight:500">篩選：</label>
+    <select id="taskFilterStatus" onchange="renderTaskTable()">
+      <option value="">全部狀態</option>
+      <option value="todo">待處理</option>
+      <option value="doing">進行中</option>
+      <option value="done">已完成</option>
+      <option value="overdue">已逾期</option>
+    </select>
+    <select id="taskFilterOwner" onchange="renderTaskTable()">
+      <option value="">全部責任人</option>
+    </select>
+  </div>
+
+  <!-- 任务表格 -->
+  <div class="task-table-wrap">
+    <table class="task-table" id="taskTable">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>任務名稱</th>
+          <th>責任人</th>
+          <th>截止日期</th>
+          <th>狀態</th>
+          <th>剩餘天數</th>
+          <th>操作</th>
+        </tr>
+      </thead>
+      <tbody id="taskTbody">
+        <tr><td colspan="7" class="task-empty"><div class="icon">📋</div><div>暫無任務，請在上方新增</div></td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
 <div class="footer">保險營運流程監控看板 · 數據本地處理，不上傳服務器</div>
 
 <script>
@@ -562,7 +668,7 @@ document.getElementById('sfFile').addEventListener('change', e => {
     sfSet.clear();
     rows.forEach(r => {
       const col = findCol(r, ['policy number','Policy Number','保单号','保單號']);
-      const sfCol = findCol(r, ['表格登记','顺丰号','SF号','tracking']);
+      const sfCol = findCol(r, ['SF','sf','表格登记','顺丰号','SF号','SF No','tracking']);
       if (col && r[col] && sfCol && r[sfCol]) sfSet.add(String(r[col]).trim().toUpperCase());
     });
     document.getElementById('sfUploadText').textContent = f.name + ' (' + sfSet.size + '条)';
@@ -1878,6 +1984,183 @@ function exportNodeExcel(key, label, records, policyCol, nameCol, subCol, status
   XLSX.utils.book_append_sheet(wb, ws, cleanLabel);
   XLSX.writeFile(wb, `${cleanLabel}_${dateStr}.xlsx`);
 }
+
+// ─── 任务管理模块 ──────────────────────────────────────────────
+const TASK_KEY = 'ins_tasks_v1';
+let taskList = [];   // [{id, name, owner, due, status, createdAt}]
+let editingTaskId = null;
+
+function loadTasks() {
+  try { taskList = JSON.parse(localStorage.getItem(TASK_KEY) || '[]'); } catch(e) { taskList = []; }
+}
+function saveTasks() {
+  localStorage.setItem(TASK_KEY, JSON.stringify(taskList));
+}
+function getToday() {
+  return new Date().toISOString().slice(0,10);
+}
+function taskDaysLeft(due) {
+  if (!due) return null;
+  const diff = Math.floor((new Date(due) - new Date(getToday())) / 86400000);
+  return diff;
+}
+function taskEffectiveStatus(t) {
+  if (t.status === 'done') return 'done';
+  const d = taskDaysLeft(t.due);
+  if (d !== null && d < 0) return 'overdue';
+  return t.status;
+}
+function taskStatusTag(t) {
+  const s = taskEffectiveStatus(t);
+  const map = {todo:'待處理',doing:'進行中',done:'已完成',overdue:'已逾期'};
+  const cls = {todo:'task-tag-todo',doing:'task-tag-doing',done:'task-tag-done',overdue:'task-tag-overdue'};
+  return `<span class='task-tag ${cls[s]||""}'>${map[s]||s}</span>`;
+}
+function renderTaskTable() {
+  loadTasks();
+  const filterStatus = document.getElementById('taskFilterStatus').value;
+  const filterOwner  = document.getElementById('taskFilterOwner').value;
+  const today = getToday();
+
+  // 统计
+  let cntTodo=0,cntDoing=0,cntDone=0,cntOverdue=0,cntToday=0;
+  taskList.forEach(t=>{
+    const s = taskEffectiveStatus(t);
+    if(s==='overdue') cntOverdue++;
+    else if(s==='done') cntDone++;
+    else if(s==='doing') cntDoing++;
+    else cntTodo++;
+    if(t.due===today && s!=='done') cntToday++;
+  });
+  document.getElementById('taskCountRow').innerHTML = `
+    <div class='task-count-item'><span class='tc-num'>${taskList.length}</span><span class='tc-label'>全部</span></div>
+    <div class='task-count-item'><span class='tc-num'>${cntTodo}</span><span class='tc-label'>待處理</span></div>
+    <div class='task-count-item'><span class='tc-num'>${cntDoing}</span><span class='tc-label'>進行中</span></div>
+    <div class='task-count-item tc-today'><span class='tc-num'>${cntToday}</span><span class='tc-label'>今日到期</span></div>
+    <div class='task-count-item tc-overdue'><span class='tc-num'>${cntOverdue}</span><span class='tc-label'>已逾期</span></div>
+    <div class='task-count-item'><span class='tc-num'>${cntDone}</span><span class='tc-label'>已完成</span></div>
+  `;
+
+  // 更新责任人筛选下拉
+  const ownerSel = document.getElementById('taskFilterOwner');
+  const curOwner = ownerSel.value;
+  const owners = [...new Set(taskList.map(t=>t.owner).filter(Boolean))].sort();
+  ownerSel.innerHTML = '<option value="">全部責任人</option>' + owners.map(o=>`<option value='${o}' ${o===curOwner?'selected':''}>${o}</option>`).join('');
+
+  // 过滤
+  let list = taskList.slice();
+  if (filterStatus) list = list.filter(t => taskEffectiveStatus(t) === filterStatus);
+  if (filterOwner)  list = list.filter(t => t.owner === filterOwner);
+
+  // 排序：逾期→今日到期→进行中→待处理→已完成，同组按截止日期升序
+  const order = {overdue:0,doing:1,todo:2,done:3};
+  list.sort((a,b)=>{
+    const sa = taskEffectiveStatus(a), sb = taskEffectiveStatus(b);
+    if(order[sa]!==order[sb]) return (order[sa]||99)-(order[sb]||99);
+    return (a.due||'').localeCompare(b.due||'');
+  });
+
+  const tbody = document.getElementById('taskTbody');
+  if (!list.length) {
+    tbody.innerHTML = `<tr><td colspan='7' class='task-empty'><div>📋</div><div>暫無符合條件的任務</div></td></tr>`;
+    return;
+  }
+  tbody.innerHTML = list.map((t,i) => {
+    const d = taskDaysLeft(t.due);
+    const s = taskEffectiveStatus(t);
+    const rowCls = s==='overdue'?'task-overdue-row':(t.due===today&&s!=='done'?'task-today-row':'');
+    let daysStr = d===null?'—':(d<0?`<span style='color:#b91c1c;font-weight:600'>逾期${Math.abs(d)}天</span>`:(d===0?`<span style='color:#d97706;font-weight:600'>今日到期</span>`:`${d}天`));
+    return `<tr class='${rowCls}'>
+      <td>${i+1}</td>
+      <td style='font-weight:500'>${escHtml(t.name)}</td>
+      <td>${escHtml(t.owner||'—')}</td>
+      <td>${t.due||'—'}</td>
+      <td>${taskStatusTag(t)}</td>
+      <td>${daysStr}</td>
+      <td>
+        <button class='task-action-btn task-edit-btn' onclick='editTask("${t.id}")'>✏️ 編輯</button>
+        <button class='task-action-btn task-done-btn' onclick='markTaskDone("${t.id}")' ${s==='done'?'disabled style="opacity:.5"':''}>✔ 完成</button>
+        <button class='task-action-btn task-del-btn' onclick='deleteTask("${t.id}")'>🗑</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+function escHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function submitTask() {
+  const name  = document.getElementById('taskName').value.trim();
+  const owner = document.getElementById('taskOwner').value.trim();
+  const due   = document.getElementById('taskDue').value;
+  const status= document.getElementById('taskStatus').value;
+  if (!name) { alert('請輸入任務名稱'); return; }
+  if (!due)  { alert('請選擇截止日期'); return; }
+  loadTasks();
+  if (editingTaskId) {
+    const idx = taskList.findIndex(t=>t.id===editingTaskId);
+    if (idx>=0) taskList[idx] = {...taskList[idx], name, owner, due, status};
+    cancelEdit();
+  } else {
+    taskList.push({ id: Date.now().toString(36)+Math.random().toString(36).slice(2,6), name, owner, due, status, createdAt: getToday() });
+  }
+  saveTasks();
+  clearTaskForm();
+  renderTaskTable();
+}
+function clearTaskForm() {
+  document.getElementById('taskName').value='';
+  document.getElementById('taskOwner').value='';
+  document.getElementById('taskDue').value='';
+  document.getElementById('taskStatus').value='todo';
+}
+function editTask(id) {
+  loadTasks();
+  const t = taskList.find(x=>x.id===id);
+  if (!t) return;
+  editingTaskId = id;
+  document.getElementById('taskName').value  = t.name||'';
+  document.getElementById('taskOwner').value = t.owner||'';
+  document.getElementById('taskDue').value   = t.due||'';
+  document.getElementById('taskStatus').value= t.status||'todo';
+  document.getElementById('taskSubmitBtn').textContent='💾 保存修改';
+  document.getElementById('taskCancelBtn').style.display='';
+  document.getElementById('taskForm').scrollIntoView({behavior:'smooth'});
+}
+function cancelEdit() {
+  editingTaskId = null;
+  clearTaskForm();
+  document.getElementById('taskSubmitBtn').textContent='➕ 新增任務';
+  document.getElementById('taskCancelBtn').style.display='none';
+}
+function markTaskDone(id) {
+  loadTasks();
+  const t = taskList.find(x=>x.id===id);
+  if (t) { t.status='done'; saveTasks(); renderTaskTable(); }
+}
+function deleteTask(id) {
+  if (!confirm('確認刪除此任務？')) return;
+  loadTasks();
+  taskList = taskList.filter(t=>t.id!==id);
+  saveTasks();
+  renderTaskTable();
+}
+function exportTaskExcel() {
+  loadTasks();
+  const today = getToday();
+  const rows = [['#','任務名稱','責任人','截止日期','狀態','剩餘天數','創建日期']];
+  const statusMap = {todo:'待處理',doing:'進行中',done:'已完成',overdue:'已逾期'};
+  taskList.forEach((t,i)=>{
+    const s = taskEffectiveStatus(t);
+    const d = taskDaysLeft(t.due);
+    rows.push([i+1, t.name, t.owner||'', t.due||'', statusMap[s]||s, d===null?'':d, t.createdAt||'']);
+  });
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols']=[{wch:5},{wch:32},{wch:12},{wch:12},{wch:10},{wch:10},{wch:12}];
+  XLSX.utils.book_append_sheet(wb, ws, '任務清單');
+  XLSX.writeFile(wb, `部門任務清單_${today}.xlsx`);
+}
+// 初始化任务模块
+loadTasks();
+renderTaskTable();
 </script>
 <div id="modalOverlay" class="modal-overlay">
   <div class="modal-box">
