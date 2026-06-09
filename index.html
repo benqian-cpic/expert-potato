@@ -271,24 +271,10 @@ body{font-family:'PingFang TC','Microsoft JhengHei',sans-serif;background:#f0f4f
         </label>
       </div>
       <div class="upload-item">
-        <label>邮寄數據（SF record，有顺丰号=已邮寄）</label>
-        <label class="upload-btn" id="sfUploadBtn">
-          <span>📦</span><span id="sfUploadText">選擇SF Record文件</span>
-          <input type="file" id="sfFile" accept=".csv,.xlsx,.xls">
-        </label>
-      </div>
-      <div class="upload-item">
-        <label>打印數據（已打印保單號列表，可選）</label>
-        <label class="upload-btn" id="printUploadBtn">
-          <span>🖨️</span><span id="printUploadText">選擇打印數據文件</span>
-          <input type="file" id="printFile" accept=".csv,.xlsx,.xls">
-        </label>
-      </div>
-      <div class="upload-item">
-        <label>簽收數據（已簽收保單號列表，可選）</label>
-        <label class="upload-btn" id="signUploadBtn">
-          <span>✅</span><span id="signUploadText">選擇簽收數據文件</span>
-          <input type="file" id="signFile" accept=".csv,.xlsx,.xls">
+        <label>Control Report（打印/邮寄/签收一体化记录）</label>
+        <label class="upload-btn" id="controlReportUploadBtn">
+          <span>📊</span><span id="controlReportUploadText">選擇 Control Report 文件</span>
+          <input type="file" id="controlReportFile" accept=".csv,.xlsx,.xls">
         </label>
       </div>
       <div class="upload-item">
@@ -534,9 +520,10 @@ body{font-family:'PingFang TC','Microsoft JhengHei',sans-serif;background:#f0f4f
 // ─── 全局状态 ───────────────────────────────────────────────
 let mainData = [];       // 主数据（全量）
 let filteredData = [];   // 筛选后数据
-let sfSet = new Set();   // 邮寄保单号集合
-let printSet = new Set();// 打印保单号集合
-let signSet = new Set(); // 签收保单号集合
+let sfSet = new Set();       // 邮寄保单号集合（SF record有值）
+let printSet = new Set();    // 打印保单号集合（print=Y）
+let signSet = new Set();     // 签收保单号集合（receipt time有值）
+let documentSet = new Set(); // 电子保单已发送集合（document=Y）
 let barChartInst = null, lineChartInst = null, pieChartInst = null;
 let nodeRecords = {}; // 每个节点对应的记录数组
 
@@ -662,45 +649,46 @@ document.getElementById('mainFile').addEventListener('change', e => {
   });
 });
 
-document.getElementById('sfFile').addEventListener('change', e => {
+// ─── Control Report 一体化处理（替代原 SF/打印/签收 三个独立文件）────────────
+// 列映射：
+//   Policy Number → 保单号
+//   document = Y  → 电子保单已发送 → documentSet
+//   print = Y     → 纸质保单已打印 → printSet
+//   SF record 有值 → 已邮寄        → sfSet
+//   receipt time 有值 → 已签收     → signSet
+document.getElementById('controlReportFile').addEventListener('change', e => {
   const f = e.target.files[0]; if (!f) return;
   readFile(f, rows => {
-    sfSet.clear();
+    sfSet.clear(); printSet.clear(); signSet.clear(); documentSet.clear();
     rows.forEach(r => {
-      const col = findCol(r, ['policy number','Policy Number','保单号','保單號']);
-      const sfCol = findCol(r, ['SF','sf','表格登记','顺丰号','SF号','SF No','tracking']);
-      if (col && r[col] && sfCol && r[sfCol]) sfSet.add(String(r[col]).trim().toUpperCase());
-    });
-    document.getElementById('sfUploadText').textContent = f.name + ' (' + sfSet.size + '条)';
-    document.getElementById('sfUploadBtn').classList.add('loaded');
-    render();
-  });
-});
+      const pnCol  = findCol(r, ['Policy Number','policy number','保单号','保單號','POLICY_NUMBER']);
+      if (!pnCol || !r[pnCol]) return;
+      const pn = String(r[pnCol]).trim().toUpperCase();
+      if (!pn) return;
 
-document.getElementById('printFile').addEventListener('change', e => {
-  const f = e.target.files[0]; if (!f) return;
-  readFile(f, rows => {
-    printSet.clear();
-    rows.forEach(r => {
-      const col = findCol(r, ['policy number','Policy Number','保单号','保單號']);
-      if (col && r[col]) printSet.add(String(r[col]).trim().toUpperCase());
-    });
-    document.getElementById('printUploadText').textContent = f.name + ' (' + printSet.size + '条)';
-    document.getElementById('printUploadBtn').classList.add('loaded');
-    render();
-  });
-});
+      // 电子保单已发送（document列=Y）
+      const docCol  = findCol(r, ['document','Document']);
+      if (docCol && String(r[docCol]||'').trim().toUpperCase() === 'Y') documentSet.add(pn);
 
-document.getElementById('signFile').addEventListener('change', e => {
-  const f = e.target.files[0]; if (!f) return;
-  readFile(f, rows => {
-    signSet.clear();
-    rows.forEach(r => {
-      const col = findCol(r, ['policy number','Policy Number','保单号','保單號']);
-      if (col && r[col]) signSet.add(String(r[col]).trim().toUpperCase());
+      // 纸质保单已打印（print列=Y）
+      const prtCol  = findCol(r, ['print','Print']);
+      if (prtCol && String(r[prtCol]||'').trim().toUpperCase() === 'Y') printSet.add(pn);
+
+      // 已邮寄（SF record列有值）
+      const sfCol   = findCol(r, ['SF record','sf record','SF Record','SF','顺丰号']);
+      if (sfCol && String(r[sfCol]||'').trim() !== '') sfSet.add(pn);
+
+      // 已签收（receipt time列有值，且不是错误值）
+      const rcptCol = findCol(r, ['receipt time','Receipt Time','签收日期','簽收日期','receipt date','Receipt Date']);
+      if (rcptCol) {
+        const rv = String(r[rcptCol]||'').trim();
+        if (rv !== '' && rv.toUpperCase() !== '#N/A' && rv.toLowerCase() !== 'n/a') signSet.add(pn);
+      }
     });
-    document.getElementById('signUploadText').textContent = f.name + ' (' + signSet.size + '条)';
-    document.getElementById('signUploadBtn').classList.add('loaded');
+    const total = rows.length;
+    document.getElementById('controlReportUploadText').textContent =
+      `${f.name}（${total}條：電子${documentSet.size} 打印${printSet.size} 郵寄${sfSet.size} 簽收${signSet.size}）`;
+    document.getElementById('controlReportUploadBtn').classList.add('loaded');
     render();
   });
 });
@@ -793,12 +781,14 @@ function calcNodes(data) {
 
   const nodes = {
     total: 0, waitEntry: 0, waitUW: 0, pendingIssued: 0,
-    pendingBack: 0, waitPay: 0, waitPrint: 0, waitMail: 0, waitSign: 0, signed: 0
+    pendingBack: 0, waitPay: 0, waitPrint: 0, waitMail: 0, waitSign: 0, signed: 0,
+    docSent: 0  // 电子保单已发送
   };
   // 同步收集每个节点的记录
   const recs = {
     total:[], waitEntry:[], waitUW:[], pendingIssued:[],
-    pendingBack:[], waitPay:[], waitPrint:[], waitMail:[], waitSign:[], signed:[]
+    pendingBack:[], waitPay:[], waitPrint:[], waitMail:[], waitSign:[], signed:[],
+    docSent:[]
   };
 
   nodes.total = data.length;
@@ -830,6 +820,9 @@ function calcNodes(data) {
     if (WAIT_PAY.includes(st))   { nodes.waitPay++;   recs.waitPay.push(r);   return; }
 
     if (INFORCE.includes(st)) {
+      // 电子保单已发送（documentSet优先，单独统计，不占用物理打印/邮寄流程）
+      if (documentSet.size > 0 && documentSet.has(pn)) { nodes.docSent++; recs.docSent.push(r); return; }
+
       if (signSet.size > 0 && signSet.has(pn)) { nodes.signed++; recs.signed.push(r); return; }
       const ackDate = ackCol ? excelDateToISO(r[ackCol]) : null;
       if (ackDate) { nodes.signed++; recs.signed.push(r); return; }
@@ -863,6 +856,7 @@ const NODE_DEFS = [
   {key:'waitMail',     label:'打印待郵寄',     icon:'📮', color:'#7E57C2'},
   {key:'waitSign',     label:'郵寄待簽收',     icon:'📬', color:'#AB47BC'},
   {key:'signed',       label:'已簽收',         icon:'✅', color:'#27ae60', noAlert:true},
+  {key:'docSent',      label:'電子保單已發送', icon:'📧', color:'#00897B', noAlert:true},
 ];
 
 function render() {
@@ -959,9 +953,9 @@ function renderCharts(nodes, data) {
   });
 
   // 饼图（承保后处理）
-  const pieData = [nodes.waitPrint, nodes.waitMail, nodes.waitSign, nodes.signed];
-  const pieLabels = ['承保待打印','打印待郵寄','郵寄待簽收','已簽收'];
-  const pieColors = ['#3498db','#e67e22','#9b59b6','#27ae60'];
+  const pieData = [nodes.waitPrint, nodes.waitMail, nodes.waitSign, nodes.signed, nodes.docSent];
+  const pieLabels = ['承保待打印','打印待郵寄','郵寄待簽收','已簽收','電子保單已發送'];
+  const pieColors = ['#3498db','#e67e22','#9b59b6','#27ae60','#00897B'];
   if (pieChartInst) pieChartInst.destroy();
   pieChartInst = new Chart(document.getElementById('pieChart'), {
     type: 'pie',
@@ -986,6 +980,7 @@ function renderReport(nodes) {
     `📮 打印待郵寄：${nodes.waitMail} 件`,
     `📬 郵寄待簽收：${nodes.waitSign} 件`,
     `✅ 已簽收：${nodes.signed} 件`,
+    `📧 電子保單已發送：${nodes.docSent} 件`,
   ];
   const alerts = [];
   if (nodes.waitUW > 50) alerts.push('⚠️ 待核保積壓嚴重，請關注');
